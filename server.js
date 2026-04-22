@@ -568,7 +568,7 @@ async function enviarWhatsApp(lojista_id, telefone, mensagem) {
     const r = await fetch(`${url}/message/sendText/${inst}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', apikey: key },
-      body: JSON.stringify({ number: numero, text: mensagem }),
+      body: JSON.stringify({ number: numero, textMessage: { text: mensagem } }),
     });
     if (!r.ok) {
       const errBody = await r.text().catch(() => '');
