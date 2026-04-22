@@ -82,7 +82,7 @@
 <body>
 
 <div class="sidebar">
-  <div class="logo">CobrarAí</div>
+  <div class="logo" onclick="irParaDashboard()" style="cursor:pointer" title="Ir para o início">CobrarAí</div>
   <div class="nav-item active" onclick="irPara('dashboard')"><span class="nav-icon">◈</span> Dashboard</div>
   <div class="nav-item" onclick="irPara('cobrancas')"><span class="nav-icon">◎</span> Cobranças</div>
   <div class="nav-item" onclick="irPara('clientes')"><span class="nav-icon">◉</span> Clientes</div>
@@ -343,6 +343,14 @@ function api(path, opts={}) {
 
 function sair() { localStorage.clear(); window.location.href = 'index.html'; }
 
+function irParaDashboard() {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-dashboard').classList.add('active');
+  document.querySelector('.nav-item').classList.add('active');
+  carregarDashboard();
+}
+
 function irPara(page) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
@@ -473,10 +481,15 @@ async function carregarRegua() {
   const [rRegua, rCfg] = await Promise.all([api('/regua'), api('/regua/config')]);
   const regua = await rRegua.json();
   const cfg = await rCfg.json();
-  try { horariosEnvio = JSON.parse(cfg.horarios_envio || '[8]').filter(h => h !== null && h !== undefined && Number.isInteger(Number(h))); } catch { horariosEnvio = [8]; }
-  if (!horariosEnvio.length) horariosEnvio = [8];
-  // limpa dados inválidos salvando a lista corrigida
-  await api('/regua/config', { method: 'PUT', body: { horarios_envio: horariosEnvio } });
+  try {
+    horariosEnvio = JSON.parse(cfg.horarios_envio || '["08:00"]').filter(h => {
+      if (h === null || h === undefined) return false;
+      if (typeof h === 'number') return Number.isInteger(h) && h >= 0 && h < 24;
+      if (typeof h === 'string') return /^\d{2}:\d{2}$/.test(h);
+      return false;
+    }).map(h => typeof h === 'number' ? `${String(h).padStart(2,'0')}:00` : h);
+  } catch { horariosEnvio = ['08:00']; }
+  if (!horariosEnvio.length) horariosEnvio = ['08:00'];
 
   const cont = document.getElementById('regua-content');
   cont.innerHTML = `
