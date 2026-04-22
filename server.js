@@ -420,6 +420,28 @@ app.get('/api/cobrancas/:id/parcelas', authMiddleware, async (req, res) => {
   } catch (e) { res.status(500).json({ erro: e.message }); }
 });
 
+app.put('/api/cobrancas/:id', authMiddleware, async (req, res) => {
+  try {
+    const { descricao } = req.body;
+    await dbRun('UPDATE cobrancas SET descricao=? WHERE id=? AND lojista_id=?',
+      [descricao || null, req.params.id, req.lojista.id]);
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ erro: e.message }); }
+});
+
+app.put('/api/cobrancas/parcela/:id/editar', authMiddleware, async (req, res) => {
+  try {
+    const { valor, vencimento, status } = req.body;
+    await dbRun(`UPDATE parcelas SET
+      valor=COALESCE(?,valor),
+      vencimento=COALESCE(?,vencimento),
+      status=COALESCE(?,status)
+      WHERE id=? AND cobranca_id IN (SELECT id FROM cobrancas WHERE lojista_id=?)`,
+      [valor || null, vencimento || null, status || null, req.params.id, req.lojista.id]);
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ erro: e.message }); }
+});
+
 app.post('/api/cobrancas/parcela/:id/pago', authMiddleware, async (req, res) => {
   await dbRun(`UPDATE parcelas SET status='pago', pago_em=datetime('now') WHERE id=? AND cobranca_id IN (SELECT id FROM cobrancas WHERE lojista_id=?)`,
     [req.params.id, req.lojista.id]);

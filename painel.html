@@ -142,7 +142,7 @@
     <div class="content">
       <div class="table-card">
         <div class="table-header"><div class="table-title">Todas as cobranças</div></div>
-        <table><thead><tr><th>Cliente</th><th>Descrição</th><th>Total</th><th>Parcelas</th><th>Pagas</th><th>Atrasadas</th><th>Status</th></tr></thead>
+        <table><thead><tr><th>Cliente</th><th>Descrição</th><th>Total</th><th>Parcelas</th><th>Pagas</th><th>Atrasadas</th><th>Status</th><th></th></tr></thead>
         <tbody id="tb-cobrancas"></tbody></table>
       </div>
     </div>
@@ -320,6 +320,24 @@
   </div>
 </div>
 
+<!-- MODAL EDITAR COBRANÇA -->
+<div id="modal-editar-cob" class="modal-overlay">
+  <div class="modal" style="max-width:580px">
+    <div class="modal-title">Editar cobrança</div>
+    <input type="hidden" id="edit-cob-id">
+    <div class="field">
+      <label>Descrição</label>
+      <input id="edit-cob-desc" placeholder="Ex: Notebook, Serviço de design...">
+    </div>
+    <div style="font-size:13px;font-weight:500;margin:.75rem 0 .5rem;color:var(--text)">Parcelas</div>
+    <div id="edit-parcelas-lista" style="display:flex;flex-direction:column;gap:8px;max-height:340px;overflow-y:auto"></div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="fecharModal('modal-editar-cob')">Cancelar</button>
+      <button class="btn-primary" onclick="salvarEdicaoCob()">Salvar alterações</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL PIX -->
 <div id="modal-pix" class="modal-overlay">
   <div class="modal" style="text-align:center">
@@ -474,6 +492,7 @@ async function carregarCobrancas() {
       <td style="color:var(--verde)">${c.parcelas_pagas || 0}</td>
       <td style="color:${c.parcelas_atrasadas > 0 ? 'var(--danger)' : 'var(--muted)'}">${c.parcelas_atrasadas || 0}</td>
       <td>${c.parcelas_pagas >= c.total_parcelas ? '<span class="badge b-pago">Quitado</span>' : c.parcelas_atrasadas > 0 ? '<span class="badge b-atraso">Em atraso</span>' : '<span class="badge b-ativo">Ativa</span>'}</td>
+      <td><button class="btn-sm" onclick="abrirEditarCob('${c.id}','${(c.descricao||'').replace(/'/g,"\\'")}')">✏️ Editar</button></td>
     </tr>`).join('');
 }
 
@@ -819,6 +838,62 @@ async function salvarConfigPix() {
     msg.style.color = '#ff5050';
     msg.textContent = 'Erro ao salvar. Tente novamente.';
   }
+}
+
+async function abrirEditarCob(cobId, descricao) {
+  document.getElementById('edit-cob-id').value = cobId;
+  document.getElementById('edit-cob-desc').value = descricao;
+  const lista = document.getElementById('edit-parcelas-lista');
+  lista.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:.5rem">Carregando parcelas...</div>';
+  document.getElementById('modal-editar-cob').classList.add('open');
+
+  const r = await api(`/cobrancas/${cobId}/parcelas`);
+  const parcelas = await r.json();
+  lista.innerHTML = parcelas.map(p => `
+    <div style="background:var(--bg2);border-radius:10px;padding:.875rem 1rem;border:1px solid var(--border)">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:.75rem;font-weight:500">Parcela ${p.numero} ${p.status === 'pago' ? '· <span style="color:var(--verde)">Paga</span>' : ''}</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+        <div class="field" style="margin:0">
+          <label>Valor (R$)</label>
+          <input type="number" id="ep-valor-${p.id}" value="${p.valor}" step="0.01" min="0" style="font-size:13px" ${p.status === 'pago' ? 'disabled' : ''}>
+        </div>
+        <div class="field" style="margin:0">
+          <label>Vencimento</label>
+          <input type="date" id="ep-venc-${p.id}" value="${p.vencimento}" style="font-size:13px" ${p.status === 'pago' ? 'disabled' : ''}>
+        </div>
+        <div class="field" style="margin:0">
+          <label>Status</label>
+          <select id="ep-status-${p.id}" style="font-size:13px">
+            <option value="pendente" ${p.status==='pendente'?'selected':''}>Pendente</option>
+            <option value="prometeu" ${p.status==='prometeu'?'selected':''}>Prometeu pagar</option>
+            <option value="pago" ${p.status==='pago'?'selected':''}>Pago</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  `).join('');
+
+  // guarda ids para salvar
+  document.getElementById('edit-cob-id').dataset.parcelas = JSON.stringify(parcelas.map(p => p.id));
+}
+
+async function salvarEdicaoCob() {
+  const cobId = document.getElementById('edit-cob-id').value;
+  const descricao = document.getElementById('edit-cob-desc').value;
+  const parcelaIds = JSON.parse(document.getElementById('edit-cob-id').dataset.parcelas || '[]');
+
+  await api(`/cobrancas/${cobId}`, { method: 'PUT', body: { descricao } });
+
+  for (const pid of parcelaIds) {
+    const valor = parseFloat(document.getElementById(`ep-valor-${pid}`)?.value);
+    const vencimento = document.getElementById(`ep-venc-${pid}`)?.value;
+    const status = document.getElementById(`ep-status-${pid}`)?.value;
+    await api(`/cobrancas/parcela/${pid}/editar`, { method: 'PUT', body: { valor, vencimento, status } });
+  }
+
+  fecharModal('modal-editar-cob');
+  carregarCobrancas();
+  carregarDashboard();
 }
 
 function abrirModalCliente() { document.getElementById('modal-cliente').classList.add('open'); }
