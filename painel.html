@@ -129,7 +129,14 @@
     <div class="topbar"><div class="page-title">Clientes</div><button class="btn-primary" onclick="abrirModalCliente()">+ Novo cliente</button></div>
     <div class="content">
       <div class="table-card">
-        <div class="table-header"><div class="table-title">Todos os clientes</div></div>
+        <div class="table-header">
+          <div class="table-title">Todos os clientes</div>
+          <div style="position:relative">
+            <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:14px;pointer-events:none">🔍</span>
+            <input id="busca-clientes" placeholder="Buscar cliente..." oninput="filtrarClientes(this.value)"
+              style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:7px 12px 7px 32px;font-size:13px;color:var(--text);font-family:'DM Sans',sans-serif;outline:none;width:220px">
+          </div>
+        </div>
         <table><thead><tr><th>Nome</th><th>CPF</th><th>Telefone</th><th>Tipo</th><th>Cobranças</th><th>Em atraso</th><th>Ações</th></tr></thead>
         <tbody id="tb-clientes"></tbody></table>
 
@@ -289,8 +296,8 @@
     </div>
     <div class="field">
       <label>WhatsApp *</label>
-      <div style="display:flex;gap:6px">
-        <select id="cli-ddi" style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px 8px;font-size:13px;color:var(--text);font-family:'DM Sans',sans-serif;outline:none;min-width:110px">
+      <div style="display:flex;gap:6px;align-items:stretch">
+        <select id="cli-ddi" style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px 6px;font-size:13px;color:var(--text);font-family:'DM Sans',sans-serif;outline:none;width:90px;flex-shrink:0;cursor:pointer">
           <option value="55">🇧🇷 +55</option>
           <option value="1">🇺🇸 +1</option>
           <option value="351">🇵🇹 +351</option>
@@ -307,7 +314,7 @@
           <option value="51">🇵🇪 +51</option>
           <option value="58">🇻🇪 +58</option>
         </select>
-        <input id="cli-tel" placeholder="(62) 99999-9999" style="flex:1">
+        <input id="cli-tel" placeholder="(DDD) 99999-9999" style="flex:1;min-width:0">
       </div>
     </div>
     <div class="field"><label>E-mail</label><input id="cli-email" placeholder="cliente@email.com"></div>
@@ -485,12 +492,16 @@ function copiarPix() {
   alert('Código PIX copiado!');
 }
 
-async function carregarClientes() {
-  const r = await api('/clientes');
-  todosClientes = await r.json();
+function filtrarClientes(termo) {
+  const t = termo.toLowerCase();
+  const filtrados = t ? todosClientes.filter(c => c.nome.toLowerCase().includes(t) || (c.cpf||'').includes(t) || (c.telefone||'').includes(t)) : todosClientes;
+  renderClientes(filtrados);
+}
+
+function renderClientes(lista) {
   const tb = document.getElementById('tb-clientes');
-  if (!todosClientes.length) { tb.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:2rem;color:var(--muted)">Nenhum cliente cadastrado</td></tr>'; return; }
-  tb.innerHTML = todosClientes.map(c => `
+  if (!lista.length) { tb.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:2rem;color:var(--muted)">Nenhum cliente encontrado</td></tr>'; return; }
+  tb.innerHTML = lista.map(c => `
     <tr>
       <td style="font-weight:500">${c.nome}</td>
       <td style="color:var(--muted)">${c.cpf || '—'}</td>
@@ -503,6 +514,14 @@ async function carregarClientes() {
         <button class="btn-sm" onclick="abrirModalCobrancaCliente('${c.id}')">+ Cobrança</button>
       </td>
     </tr>`).join('');
+}
+
+async function carregarClientes() {
+  const r = await api('/clientes');
+  todosClientes = await r.json();
+  const busca = document.getElementById('busca-clientes');
+  if (busca) busca.value = '';
+  renderClientes(todosClientes);
 }
 
 async function carregarCobrancas() {
