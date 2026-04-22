@@ -132,6 +132,7 @@
         <div class="table-header"><div class="table-title">Todos os clientes</div></div>
         <table><thead><tr><th>Nome</th><th>CPF</th><th>Telefone</th><th>Tipo</th><th>Cobranças</th><th>Em atraso</th><th>Ações</th></tr></thead>
         <tbody id="tb-clientes"></tbody></table>
+
       </div>
     </div>
   </div>
@@ -279,7 +280,8 @@
 <!-- MODAL CLIENTE -->
 <div id="modal-cliente" class="modal-overlay">
   <div class="modal">
-    <div class="modal-title">Novo cliente</div>
+    <div class="modal-title" id="modal-cliente-title">Novo cliente</div>
+    <input type="hidden" id="cli-id">
     <div class="field"><label>Nome *</label><input id="cli-nome" placeholder="Nome completo"></div>
     <div class="field-row">
       <div class="field"><label>CPF</label><input id="cli-cpf" placeholder="000.000.000-00" maxlength="14"></div>
@@ -289,7 +291,7 @@
     <div class="field"><label>E-mail</label><input id="cli-email" placeholder="cliente@email.com"></div>
     <div class="modal-footer">
       <button class="btn-cancel" onclick="fecharModal('modal-cliente')">Cancelar</button>
-      <button class="btn-primary" onclick="salvarCliente()">Salvar cliente</button>
+      <button class="btn-primary" id="btn-salvar-cliente" onclick="salvarCliente()">Salvar cliente</button>
     </div>
   </div>
 </div>
@@ -474,7 +476,10 @@ async function carregarClientes() {
       <td><span class="badge b-ativo">${c.tipo}</span></td>
       <td>${c.total_cobrancas || 0}</td>
       <td>${c.parcelas_atrasadas > 0 ? `<span style="color:var(--danger)">${fmt(c.valor_em_atraso)}</span>` : '<span style="color:var(--muted)">—</span>'}</td>
-      <td><button class="btn-sm" onclick="abrirModalCobrancaCliente('${c.id}')">+ Cobrança</button></td>
+      <td style="display:flex;gap:6px">
+        <button class="btn-sm" onclick="editarCliente('${c.id}')">✏️ Editar</button>
+        <button class="btn-sm" onclick="abrirModalCobrancaCliente('${c.id}')">+ Cobrança</button>
+      </td>
     </tr>`).join('');
 }
 
@@ -980,17 +985,46 @@ async function salvarEdicaoCob() {
   carregarDashboard();
 }
 
-function abrirModalCliente() { document.getElementById('modal-cliente').classList.add('open'); }
+function abrirModalCliente() {
+  document.getElementById('cli-id').value = '';
+  document.getElementById('cli-nome').value = '';
+  document.getElementById('cli-cpf').value = '';
+  document.getElementById('cli-tel').value = '';
+  document.getElementById('cli-email').value = '';
+  document.getElementById('cli-tipo').value = 'produto';
+  document.getElementById('modal-cliente-title').textContent = 'Novo cliente';
+  document.getElementById('btn-salvar-cliente').textContent = 'Salvar cliente';
+  document.getElementById('modal-cliente').classList.add('open');
+}
+
+function editarCliente(id) {
+  const c = todosClientes.find(x => x.id === id);
+  if (!c) return;
+  document.getElementById('cli-id').value = c.id;
+  document.getElementById('cli-nome').value = c.nome || '';
+  document.getElementById('cli-cpf').value = c.cpf || '';
+  document.getElementById('cli-tel').value = c.telefone || '';
+  document.getElementById('cli-email').value = c.email || '';
+  document.getElementById('cli-tipo').value = c.tipo || 'produto';
+  document.getElementById('modal-cliente-title').textContent = 'Editar cliente';
+  document.getElementById('btn-salvar-cliente').textContent = 'Salvar alterações';
+  document.getElementById('modal-cliente').classList.add('open');
+}
 function fecharModal(id) { document.getElementById(id).classList.remove('open'); }
 
 async function salvarCliente() {
+  const id = document.getElementById('cli-id').value;
   const nome = document.getElementById('cli-nome').value;
   const cpf = document.getElementById('cli-cpf').value;
   const telefone = document.getElementById('cli-tel').value;
   const email = document.getElementById('cli-email').value;
   const tipo = document.getElementById('cli-tipo').value;
   if (!nome) return alert('Nome é obrigatório');
-  await api('/clientes', {method:'POST', body:{nome, cpf, telefone, email, tipo}});
+  if (id) {
+    await api(`/clientes/${id}`, {method:'PUT', body:{nome, cpf, telefone, email, tipo}});
+  } else {
+    await api('/clientes', {method:'POST', body:{nome, cpf, telefone, email, tipo}});
+  }
   fecharModal('modal-cliente');
   carregarClientes();
 }
