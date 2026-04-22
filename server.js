@@ -145,6 +145,7 @@ async function iniciarBanco() {
     vapi_assistant_id TEXT
   )`);
 
+  await migrarRoteirosVoz();
   console.log('✅ Tabelas prontas');
 }
 
@@ -213,15 +214,39 @@ async function criarReguaPadrao(lojista_id) {
     { dia: 90, msg: '🚨 {nome}, 90 dias de atraso com a *{empresa}*. Seu caso será encaminhado para assessoria jurídica. Pague *{valor}*: {link}' },
   ];
   const roteiros = {
-    7:  'Olá, {nome}! Aqui é da {empresa}. Estou ligando porque sua parcela de {valor} está em atraso há 7 dias. Para pagar agora via PIX, acesse o link que enviamos pelo WhatsApp. Em caso de dúvidas, entre em contato conosco. Obrigado!',
-    15: 'Boa tarde, {nome}. Aqui é um recado da {empresa}. Sua parcela de {valor} está em atraso há 15 dias. Para evitar a inclusão do seu nome no SPC e Serasa, regularize agora pelo PIX disponível no link que enviamos. Contamos com você!',
-    30: 'Olá, {nome}. Aqui é da {empresa}. Sua dívida de {valor} completa hoje 30 dias em atraso. Esse é nosso aviso final antes de encaminharmos para negativação. Regularize pelo link do PIX enviado no WhatsApp ou entre em contato conosco urgente.',
-    60: 'Olá, {nome}. Aqui é da {empresa}. Sua pendência de {valor} está há 60 dias em aberto e seu nome já foi incluído no SPC e Serasa. Para retirar a restrição, regularize pelo link enviado no WhatsApp ou entre em contato. Obrigado.',
+    0:  'Olá, {nome}! Aqui é um contato da {empresa}. Estou ligando para avisar que sua parcela de {valor} vence hoje. Você consegue efetuar o pagamento ainda hoje? Enviamos o código PIX pelo WhatsApp. Se preferir, posso aguardar enquanto você acessa. Caso tenha alguma dificuldade, me informe e podemos verificar uma solução.',
+    1:  'Olá, {nome}! Aqui é da {empresa}. Sua parcela de {valor} venceu ontem e ainda está em aberto. Você consegue realizar o pagamento hoje? O PIX foi enviado pelo WhatsApp. Se precisar de um prazo ou tiver alguma dificuldade, por favor me informe para registrarmos.',
+    3:  'Olá, {nome}. Aqui é da {empresa}. Sua parcela de {valor} está em atraso há 3 dias. Gostaríamos de entender sua situação. Você consegue quitar hoje ou prefere combinar uma data? Basta me informar e registramos o acordo. O PIX está disponível no WhatsApp.',
+    7:  'Olá, {nome}! Aqui é da {empresa}. Estou ligando porque sua parcela de {valor} está em atraso há 7 dias. Você consegue pagar hoje ou agendar para amanhã? Posso registrar sua promessa de pagamento agora mesmo. O código PIX foi enviado pelo WhatsApp. Se tiver alguma dificuldade financeira, me conte para buscarmos uma solução.',
+    15: 'Boa tarde, {nome}. Aqui é da {empresa}. Sua parcela de {valor} está em atraso há 15 dias. Para evitar a inclusão do seu nome no SPC e Serasa, precisamos regularizar essa situação. Você consegue pagar hoje ou prefere agendar? Me informe uma data e registramos seu compromisso.',
+    30: 'Olá, {nome}. Aqui é da {empresa}. Sua dívida de {valor} completa 30 dias em atraso hoje. Esse é nosso aviso antes de encaminharmos para negativação. Você consegue quitar hoje ou negociar uma data? Ainda temos como resolver amigavelmente. Por favor, me informe sua situação.',
+    60: 'Olá, {nome}. Aqui é da {empresa}. Sua pendência de {valor} está há 60 dias em aberto e seu nome já foi incluído no SPC e Serasa. Para retirar a restrição, é necessário regularizar. Você deseja negociar o pagamento hoje? Me informe para registrarmos e iniciarmos a baixa da restrição.',
   };
+  // dias com ligação ativa por padrão: 0, 1, 3, 7, 15, 30, 60
+  const diasComVoz = new Set([0, 1, 3, 7, 15, 30, 60]);
   for (const m of mensagens) {
     await dbRun(
-      'INSERT OR IGNORE INTO regua (lojista_id, dia_atraso, acao_wpp, acao_voz, mensagem_wpp, roteiro_voz, ativo) VALUES (?,?,1,0,?,?,1)',
-      [lojista_id, m.dia, m.msg, roteiros[m.dia] || null]
+      'INSERT OR IGNORE INTO regua (lojista_id, dia_atraso, acao_wpp, acao_voz, mensagem_wpp, roteiro_voz, ativo) VALUES (?,?,1,?,?,?,1)',
+      [lojista_id, m.dia, diasComVoz.has(m.dia) ? 1 : 0, m.msg, roteiros[m.dia] || null]
+    );
+  }
+}
+
+// Migração de roteiros: atualiza lojistas existentes que não têm roteiro_voz configurado
+async function migrarRoteirosVoz() {
+  const roteiros = {
+    0:  'Olá, {nome}! Aqui é um contato da {empresa}. Estou ligando para avisar que sua parcela de {valor} vence hoje. Você consegue efetuar o pagamento ainda hoje? Enviamos o código PIX pelo WhatsApp. Se preferir, posso aguardar enquanto você acessa. Caso tenha alguma dificuldade, me informe e podemos verificar uma solução.',
+    1:  'Olá, {nome}! Aqui é da {empresa}. Sua parcela de {valor} venceu ontem e ainda está em aberto. Você consegue realizar o pagamento hoje? O PIX foi enviado pelo WhatsApp. Se precisar de um prazo ou tiver alguma dificuldade, por favor me informe para registrarmos.',
+    3:  'Olá, {nome}. Aqui é da {empresa}. Sua parcela de {valor} está em atraso há 3 dias. Gostaríamos de entender sua situação. Você consegue quitar hoje ou prefere combinar uma data? Basta me informar e registramos o acordo. O PIX está disponível no WhatsApp.',
+    7:  'Olá, {nome}! Aqui é da {empresa}. Estou ligando porque sua parcela de {valor} está em atraso há 7 dias. Você consegue pagar hoje ou agendar para amanhã? Posso registrar sua promessa de pagamento agora mesmo. O código PIX foi enviado pelo WhatsApp. Se tiver alguma dificuldade financeira, me conte para buscarmos uma solução.',
+    15: 'Boa tarde, {nome}. Aqui é da {empresa}. Sua parcela de {valor} está em atraso há 15 dias. Para evitar a inclusão do seu nome no SPC e Serasa, precisamos regularizar essa situação. Você consegue pagar hoje ou prefere agendar? Me informe uma data e registramos seu compromisso.',
+    30: 'Olá, {nome}. Aqui é da {empresa}. Sua dívida de {valor} completa 30 dias em atraso hoje. Esse é nosso aviso antes de encaminharmos para negativação. Você consegue quitar hoje ou negociar uma data? Ainda temos como resolver amigavelmente. Por favor, me informe sua situação.',
+    60: 'Olá, {nome}. Aqui é da {empresa}. Sua pendência de {valor} está há 60 dias em aberto e seu nome já foi incluído no SPC e Serasa. Para retirar a restrição, é necessário regularizar. Você deseja negociar o pagamento hoje? Me informe para registrarmos e iniciarmos a baixa da restrição.',
+  };
+  for (const [dia, roteiro] of Object.entries(roteiros)) {
+    await dbRun(
+      `UPDATE regua SET roteiro_voz=?, acao_voz=1 WHERE dia_atraso=? AND (roteiro_voz IS NULL OR roteiro_voz='')`,
+      [roteiro, parseInt(dia)]
     );
   }
 }
@@ -659,7 +684,7 @@ async function rodarRegua(lojista_id_filtro = null, tipo = null) {
 
       // WhatsApp
       if (regra.acao_wpp && p.cliente_tel && regra.mensagem_wpp && (!tipo || tipo === 'wpp')) {
-        const jaEnviouWpp = await dbGet(`SELECT id FROM disparos WHERE parcela_id=? AND dia_atraso=? AND tipo='wpp' AND strftime('%Y-%m-%d %H', enviado_em)=strftime('%Y-%m-%d %H', 'now')`, [p.id, atraso]);
+        const jaEnviouWpp = await dbGet(`SELECT id FROM disparos WHERE parcela_id=? AND dia_atraso=? AND tipo='wpp' AND status='ok' AND strftime('%Y-%m-%d %H', enviado_em)=strftime('%Y-%m-%d %H', 'now')`, [p.id, atraso]);
         if (!jaEnviouWpp) {
           const msg = montarMensagem(regra.mensagem_wpp, dados);
           const ok = await enviarWhatsApp(p.lojista_id, p.cliente_tel, msg);
@@ -671,7 +696,7 @@ async function rodarRegua(lojista_id_filtro = null, tipo = null) {
 
       // Ligação IA (VAPI)
       if (regra.acao_voz && p.cliente_tel && regra.roteiro_voz && (!tipo || tipo === 'voz')) {
-        const jaLigou = await dbGet(`SELECT id FROM disparos WHERE parcela_id=? AND dia_atraso=? AND tipo='voz' AND strftime('%Y-%m-%d %H', enviado_em)=strftime('%Y-%m-%d %H', 'now')`, [p.id, atraso]);
+        const jaLigou = await dbGet(`SELECT id FROM disparos WHERE parcela_id=? AND dia_atraso=? AND tipo='voz' AND status='ok' AND strftime('%Y-%m-%d %H', enviado_em)=strftime('%Y-%m-%d %H', 'now')`, [p.id, atraso]);
         if (!jaLigou) {
           const roteiro = montarMensagem(regra.roteiro_voz, dados);
           const res = await enviarLigacaoVAPI(p.lojista_id, p.cliente_tel, roteiro);
