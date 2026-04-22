@@ -542,7 +542,41 @@ async function carregarCobrancas() {
     </tr>`).join('');
 }
 
+async function carregarStatus() {
+  try {
+    const r = await api('/status');
+    const d = await r.json();
+    const cont = document.getElementById('status-cards');
+    if (!cont) return;
+    const wppOk = d.wpp === 'open';
+    const vozOk = d.vapi === true;
+    cont.innerHTML = `
+      <div style="background:var(--card);border:1px solid ${wppOk ? 'rgba(0,200,150,.25)' : 'rgba(255,90,90,.2)'};border-radius:12px;padding:1rem;display:flex;align-items:center;gap:12px">
+        <div style="width:38px;height:38px;border-radius:10px;background:${wppOk ? 'rgba(0,200,150,.12)' : 'rgba(255,90,90,.1)'};display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">📱</div>
+        <div>
+          <div style="font-size:13px;font-weight:600;margin-bottom:2px">WhatsApp</div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <div style="width:7px;height:7px;border-radius:50%;background:${wppOk ? 'var(--verde)' : 'var(--danger)'}"></div>
+            <span style="font-size:12px;color:${wppOk ? 'var(--verde)' : 'var(--danger)'}">${wppOk ? 'ATIVO — Mensagens sendo enviadas' : 'DESCONECTADO — Vá em Configurações'}</span>
+          </div>
+        </div>
+      </div>
+      <div style="background:var(--card);border:1px solid ${vozOk ? 'rgba(124,58,237,.25)' : 'rgba(100,100,100,.2)'};border-radius:12px;padding:1rem;display:flex;align-items:center;gap:12px">
+        <div style="width:38px;height:38px;border-radius:10px;background:${vozOk ? 'rgba(124,58,237,.12)' : 'rgba(100,100,100,.08)'};display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">📞</div>
+        <div>
+          <div style="font-size:13px;font-weight:600;margin-bottom:2px">Ligações IA</div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <div style="width:7px;height:7px;border-radius:50%;background:${vozOk ? '#7c3aed' : 'var(--muted)'}"></div>
+            <span style="font-size:12px;color:${vozOk ? '#a78bfa' : 'var(--muted)'}">${vozOk ? 'ATIVO — VAPI configurado' : 'NÃO CONFIGURADO — Configure o VAPI no servidor'}</span>
+          </div>
+        </div>
+      </div>
+    `;
+  } catch {}
+}
+
 async function carregarRegua() {
+  carregarStatus();
   const [rRegua, rCfg] = await Promise.all([api('/regua'), api('/regua/config')]);
   const regua = await rRegua.json();
   const cfg = await rCfg.json();
@@ -593,17 +627,11 @@ async function carregarRegua() {
 
       </div>
 
-      <!-- Testar -->
-      <div style="border-top:1px solid var(--border);margin-top:1.25rem;padding-top:1rem;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-        <div style="flex:1;min-width:180px">
-          <div style="font-size:13px;font-weight:500">Testar disparo agora</div>
-          <div style="font-size:12px;color:var(--muted)">Dispara para todas as parcelas em atraso imediatamente</div>
-        </div>
-        <button class="btn-sm" onclick="testarDisparo('wpp')" style="color:var(--verde);border-color:rgba(0,200,150,.3);padding:8px 16px">▶ Testar WPP</button>
-        <button class="btn-sm" onclick="testarDisparo('voz')" style="color:#a78bfa;border-color:rgba(124,58,237,.3);padding:8px 16px">▶ Testar Ligações</button>
-      </div>
       <div id="horarios-status" style="display:none;margin-top:.75rem;padding:.6rem 1rem;border-radius:8px;font-size:13px;text-align:center"></div>
     </div>
+
+    <!-- Status -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:1rem" id="status-cards"></div>
 
     <!-- Mensagens -->
     <div class="table-card" style="padding:1.25rem;margin-bottom:1rem">
@@ -617,21 +645,22 @@ async function carregarRegua() {
         ${regua.map(item => `
           <div style="background:var(--bg2);border-radius:12px;border:1px solid ${item.ativo ? 'var(--border)' : 'rgba(255,90,90,.15)'}; transition:border .2s" id="regra-${item.id}">
             <div style="display:flex;align-items:center;gap:10px;padding:.875rem 1rem;cursor:pointer" onclick="toggleExpand(${item.id})">
-              <div style="min-width:80px">
+              <div style="min-width:72px">
                 <span style="font-size:12px;font-weight:700;color:${item.ativo ? 'var(--verde)' : 'var(--muted)'}">
-                  ${item.dia_atraso === 0 ? '📅 Vence hoje' : `📅 Dia ${item.dia_atraso}`}
+                  ${item.dia_atraso === 0 ? 'Vence hoje' : `Dia ${item.dia_atraso}`}
                 </span>
               </div>
-              <div style="flex:1;font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
-                ${(item.mensagem_wpp || '').substring(0, 60)}${(item.mensagem_wpp || '').length > 60 ? '...' : ''}
+              <div style="flex:1;overflow:hidden;min-width:0">
+                ${item.acao_wpp && item.mensagem_wpp ? `<div style="font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">📱 ${(item.mensagem_wpp||'').substring(0,50)}${(item.mensagem_wpp||'').length>50?'...':''}</div>` : ''}
+                ${item.acao_voz && item.roteiro_voz ? `<div style="font-size:12px;color:#a78bfa;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:2px">📞 ${(item.roteiro_voz||'').substring(0,50)}${(item.roteiro_voz||'').length>50?'...':''}</div>` : ''}
+                ${item.acao_voz && !item.roteiro_voz ? `<div style="font-size:11px;color:rgba(167,139,250,.5)">📞 Voz ativa — roteiro não configurado</div>` : ''}
               </div>
               <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
-                ${item.acao_voz ? '<span class="badge b-voz" style="font-size:10px">📞 Voz</span>' : ''}
                 <label onclick="event.stopPropagation()" style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px;color:var(--muted)">
                   <input type="checkbox" id="ativo-${item.id}" ${item.ativo ? 'checked' : ''} onchange="salvarMensagem(${item.id})" style="accent-color:var(--verde)">
                   Ativo
                 </label>
-                <span style="color:var(--muted);font-size:16px" id="expand-icon-${item.id}">›</span>
+                <span style="color:var(--muted);font-size:18px;line-height:1;transition:transform .2s" id="expand-icon-${item.id}">›</span>
               </div>
             </div>
             <div id="expand-${item.id}" style="display:none;padding:0 1rem 1rem">

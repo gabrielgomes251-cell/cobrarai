@@ -560,17 +560,24 @@ async function enviarWhatsApp(lojista_id, telefone, mensagem) {
   const url  = cfg?.evolution_url  || EVOLUTION_URL;
   const key  = cfg?.evolution_key  || EVOLUTION_KEY;
   const inst = cfg?.evolution_inst || `cobrarai_${lojista_id.replace(/-/g,'').substring(0,12)}`;
-  if (!url || !key || !inst) { console.error('[WPP] Config incompleta', { url: !!url, key: !!key, inst: !!inst }); return false; }
+  if (!url || !key) { console.error('[WPP] Config incompleta — EVOLUTION_URL ou KEY ausente'); return false; }
   const tel = telefone.replace(/\D/g, '');
   const numero = tel.startsWith('55') ? tel : '55' + tel;
+  console.log(`[WPP] Enviando para ${numero} via ${inst}`);
   try {
     const r = await fetch(`${url}/message/sendText/${inst}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', apikey: key },
       body: JSON.stringify({ number: numero, text: mensagem }),
     });
-    return r.ok;
-  } catch (e) { console.error('[WPP] Erro:', e.message); return false; }
+    if (!r.ok) {
+      const errBody = await r.text().catch(() => '');
+      console.error(`[WPP] Falha ${r.status}:`, errBody.substring(0, 200));
+      return false;
+    }
+    console.log('[WPP] Enviado com sucesso para', numero);
+    return true;
+  } catch (e) { console.error('[WPP] Erro de rede:', e.message); return false; }
 }
 
 function montarMensagem(template, dados) {
@@ -629,6 +636,7 @@ async function rodarRegua(lojista_id_filtro = null, tipo = null) {
     ${lojista_id_filtro ? 'AND c.lojista_id = ?' : ''}
   `, lojista_id_filtro ? [lojista_id_filtro] : []);
 
+  console.log(`[RÉGUA] ${parcelasAlvo.length} parcelas em atraso encontradas`);
   let enviados = 0, erros = 0;
   const empresaCache = {};
   for (const p of parcelasAlvo) {
@@ -637,7 +645,9 @@ async function rodarRegua(lojista_id_filtro = null, tipo = null) {
       empresaCache[p.lojista_id] = l?.nome_empresa || l?.nome || '';
     }
     const atraso = diasAtraso(p.vencimento);
+    console.log(`[RÉGUA] Parcela ${p.id} — cliente: ${p.cliente_nome}, atraso: ${atraso} dias, tel: ${p.cliente_tel}`);
     const regras = await dbAll('SELECT * FROM regua WHERE lojista_id=? AND dia_atraso=? AND ativo=1', [p.lojista_id, atraso]);
+    console.log(`[RÉGUA] Regras ativas para dia ${atraso}: ${regras.length}`);
     for (const regra of regras) {
       const dados = {
         nome: p.cliente_nome, valor: p.valor, vencimento: p.vencimento,
@@ -780,6 +790,28 @@ app.post('/api/whatsapp/desconectar', authMiddleware, async (req, res) => {
     const { url, key, inst } = await getEvolutionCfg(req.lojista.id);
     if (url && key) await fetch(`${url}/instance/logout/${inst}`, { method: 'DELETE', headers: { apikey: key } }).catch(() => {});
     res.json({ ok: true });
+  } catch (e) { res.status(500).json({ erro: e.message }); }
+});
+
+// ─── STATUS ───────────────────────────────────────────────────────────────────
+app.get('/api/status', authMiddleware, async (req, res) => {
+  try {
+    const cfg = await dbGet('SELECT * FROM config WHERE lojista_id=?', [req.lojista.id]);
+    const url  = cfg?.evolution_url  || EVOLUTION_URL;
+    const key  = cfg?.evolution_key  || EVOLUTION_KEY;
+    const inst = cfg?.evolution_inst || `cobrarai_${req.lojista.id.replace(/-/g,'').substring(0,12)}`;
+
+    let wppStatus = 'desconectado';
+    if (url && key) {
+      try {
+        const r = await fetch(`${url}/instance/connectionState/${inst}`, { headers: { apikey: key } });
+        const d = await r.json();
+        wppStatus = d.instance?.state || d.state || 'desconectado';
+      } catch { wppStatus = 'erro'; }
+    }
+
+    const vapiOk = !!(VAPI_KEY && VAPI_ASSISTANT_ID && VAPI_PHONE_ID);
+    res.json({ wpp: wppStatus, vapi: vapiOk });
   } catch (e) { res.status(500).json({ erro: e.message }); }
 });
 
