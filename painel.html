@@ -489,8 +489,15 @@ async function carregarRegua() {
         </div>
       </div>
       <div id="horarios-lista" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:1rem;min-height:36px"></div>
-      <div style="display:flex;gap:8px;align-items:center">
-        <select id="horario-novo" style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:14px;color:var(--text);font-family:'DM Sans',sans-serif;outline:none;cursor:pointer"></select>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <select id="horario-hora" style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:14px;color:var(--text);font-family:'DM Sans',sans-serif;outline:none;cursor:pointer"></select>
+        <span style="color:var(--muted);font-size:18px;font-weight:300">:</span>
+        <select id="horario-min" style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:14px;color:var(--text);font-family:'DM Sans',sans-serif;outline:none;cursor:pointer">
+          <option value="00">00</option><option value="05">05</option><option value="10">10</option>
+          <option value="15">15</option><option value="20">20</option><option value="25">25</option>
+          <option value="30">30</option><option value="35">35</option><option value="40">40</option>
+          <option value="45">45</option><option value="50">50</option><option value="55">55</option>
+        </select>
         <button class="btn-primary" onclick="adicionarHorario()" style="width:auto;padding:9px 20px;font-size:13px">+ Adicionar horário</button>
       </div>
       <div id="horarios-status" style="display:none;margin-top:.75rem;padding:.6rem 1rem;border-radius:8px;font-size:13px;text-align:center"></div>
@@ -558,12 +565,12 @@ async function carregarRegua() {
     </div>
   `;
 
-  // Popula select de horários
-  const sel = document.getElementById('horario-novo');
+  // Popula select de horas
+  const sel = document.getElementById('horario-hora');
   for (let i = 0; i < 24; i++) {
     const opt = document.createElement('option');
-    opt.value = i;
-    opt.textContent = String(i).padStart(2,'0') + ':00';
+    opt.value = String(i).padStart(2,'0');
+    opt.textContent = String(i).padStart(2,'0');
     sel.appendChild(opt);
   }
   renderHorarios();
@@ -618,18 +625,24 @@ function renderHorarios() {
     lista.innerHTML = '<span style="font-size:13px;color:var(--muted)">Nenhum horário configurado</span>';
     return;
   }
-  lista.innerHTML = [...horariosEnvio].sort((a,b)=>a-b).map(h => `
-    <div style="display:flex;align-items:center;gap:6px;background:rgba(0,200,150,.1);border:1px solid rgba(0,200,150,.2);border-radius:99px;padding:5px 12px;font-size:13px;color:var(--verde)">
-      ${String(h).padStart(2,'0')}:00
-      <span onclick="removerHorario(${h})" style="cursor:pointer;font-size:15px;color:var(--muted);line-height:1" title="Remover">×</span>
+  // normaliza para "HH:MM"
+  const normalizados = horariosEnvio.map(h => typeof h === 'number' ? `${String(h).padStart(2,'0')}:00` : h);
+  lista.innerHTML = [...normalizados].sort().map(h => `
+    <div style="display:flex;align-items:center;gap:6px;background:rgba(0,200,150,.1);border:1px solid rgba(0,200,150,.2);border-radius:99px;padding:5px 14px;font-size:13px;color:var(--verde);font-weight:500">
+      ${h}
+      <span onclick="removerHorario('${h}')" style="cursor:pointer;font-size:16px;color:var(--muted);line-height:1;margin-left:2px" title="Remover">×</span>
     </div>
   `).join('');
 }
 
 async function adicionarHorario() {
-  const h = parseInt(document.getElementById('horario-novo').value);
-  if (horariosEnvio.includes(h)) { mostrarStatusHorario('Esse horário já está na lista.', false); return; }
-  horariosEnvio.push(h);
+  const hora = document.getElementById('horario-hora').value;
+  const min = document.getElementById('horario-min').value;
+  const timeStr = `${hora}:${min}`;
+  // normaliza lista para string
+  horariosEnvio = horariosEnvio.map(h => typeof h === 'number' ? `${String(h).padStart(2,'0')}:00` : h);
+  if (horariosEnvio.includes(timeStr)) { mostrarStatusHorario('Esse horário já está na lista.', false); return; }
+  horariosEnvio.push(timeStr);
   renderHorarios();
   await salvarHorarios();
 }

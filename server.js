@@ -623,7 +623,7 @@ async function rodarRegua(lojista_id_filtro = null) {
 
       // WhatsApp
       if (regra.acao_wpp && p.cliente_tel && regra.mensagem_wpp) {
-        const jaEnviouWpp = await dbGet(`SELECT id FROM disparos WHERE parcela_id=? AND dia_atraso=? AND tipo='wpp' AND date(enviado_em)=date('now')`, [p.id, atraso]);
+        const jaEnviouWpp = await dbGet(`SELECT id FROM disparos WHERE parcela_id=? AND dia_atraso=? AND tipo='wpp' AND strftime('%Y-%m-%d %H', enviado_em)=strftime('%Y-%m-%d %H', 'now')`, [p.id, atraso]);
         if (!jaEnviouWpp) {
           const msg = montarMensagem(regra.mensagem_wpp, dados);
           const ok = await enviarWhatsApp(p.lojista_id, p.cliente_tel, msg);
@@ -635,7 +635,7 @@ async function rodarRegua(lojista_id_filtro = null) {
 
       // Ligação IA (VAPI)
       if (regra.acao_voz && p.cliente_tel && regra.roteiro_voz) {
-        const jaLigou = await dbGet(`SELECT id FROM disparos WHERE parcela_id=? AND dia_atraso=? AND tipo='voz' AND date(enviado_em)=date('now')`, [p.id, atraso]);
+        const jaLigou = await dbGet(`SELECT id FROM disparos WHERE parcela_id=? AND dia_atraso=? AND tipo='voz' AND strftime('%Y-%m-%d %H', enviado_em)=strftime('%Y-%m-%d %H', 'now')`, [p.id, atraso]);
         if (!jaLigou) {
           const roteiro = montarMensagem(regra.roteiro_voz, dados);
           const res = await enviarLigacaoVAPI(p.lojista_id, p.cliente_tel, roteiro);
@@ -649,14 +649,22 @@ async function rodarRegua(lojista_id_filtro = null) {
   console.log(`[RÉGUA] Enviados: ${enviados}, Erros: ${erros}`);
 }
 
-// Toda hora verifica quais lojistas têm envio programado para essa hora (BRT = UTC-3)
-cron.schedule('0 * * * *', async () => {
-  const brtHour = (new Date().getUTCHours() - 3 + 24) % 24;
-  console.log(`[CRON] Hora BRT: ${brtHour}h`);
+// A cada minuto verifica quais lojistas têm envio programado para esse momento (BRT = UTC-3)
+cron.schedule('* * * * *', async () => {
+  const now = new Date();
+  const totalMin = (now.getUTCHours() * 60 + now.getUTCMinutes() - 180 + 1440) % 1440;
+  const brtH = String(Math.floor(totalMin / 60)).padStart(2, '0');
+  const brtM = String(totalMin % 60).padStart(2, '0');
+  const timeStr = `${brtH}:${brtM}`;
+
   const configs = await dbAll('SELECT lojista_id, horarios_envio FROM config');
   for (const cfg of configs) {
-    const horarios = JSON.parse(cfg.horarios_envio || '[8]');
-    if (horarios.map(Number).includes(brtHour)) {
+    let horarios = [];
+    try { horarios = JSON.parse(cfg.horarios_envio || '["08:00"]'); } catch {}
+    // compatibilidade: converte formato antigo (inteiros) para "HH:MM"
+    horarios = horarios.map(h => typeof h === 'number' ? `${String(h).padStart(2,'0')}:00` : h);
+    if (horarios.includes(timeStr)) {
+      console.log(`[CRON] ${timeStr} BRT — disparando para lojista ${cfg.lojista_id}`);
       await rodarRegua(cfg.lojista_id);
     }
   }
