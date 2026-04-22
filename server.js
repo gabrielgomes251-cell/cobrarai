@@ -60,6 +60,7 @@ async function iniciarBanco() {
   await dbRun(`ALTER TABLE lojistas ADD COLUMN nome_empresa TEXT`).catch(() => {});
   await dbRun(`ALTER TABLE regua ADD COLUMN roteiro_voz TEXT`).catch(() => {});
   await dbRun(`ALTER TABLE config ADD COLUMN vapi_phone_id TEXT`).catch(() => {});
+  await dbRun(`ALTER TABLE config ADD COLUMN horarios_envio TEXT`).catch(() => {});
 
   await dbRun(`CREATE TABLE IF NOT EXISTS lojistas (
     id          TEXT PRIMARY KEY,
@@ -490,12 +491,15 @@ app.get('/api/regua/config', authMiddleware, async (req, res) => {
 });
 
 app.put('/api/regua/config', authMiddleware, async (req, res) => {
-  const { openpix_app_id } = req.body;
+  const { openpix_app_id, horarios_envio } = req.body;
+  const horariosJson = horarios_envio ? JSON.stringify(horarios_envio) : null;
   await dbRun(`
-    INSERT INTO config (lojista_id, openpix_app_id)
-    VALUES (?,?)
-    ON CONFLICT(lojista_id) DO UPDATE SET openpix_app_id=excluded.openpix_app_id
-  `, [req.lojista.id, openpix_app_id || null]);
+    INSERT INTO config (lojista_id, openpix_app_id, horarios_envio)
+    VALUES (?,?,?)
+    ON CONFLICT(lojista_id) DO UPDATE SET
+      openpix_app_id=excluded.openpix_app_id,
+      horarios_envio=COALESCE(excluded.horarios_envio, horarios_envio)
+  `, [req.lojista.id, openpix_app_id || null, horariosJson]);
   res.json({ ok: true });
 });
 
@@ -587,8 +591,8 @@ async function enviarLigacaoVAPI(lojista_id, telefone, roteiro) {
 }
 
 // ─── CRON: RÉGUA AUTOMÁTICA ───────────────────────────────────────────────────
-async function rodarRegua() {
-  console.log('[RÉGUA] Iniciando:', new Date().toISOString());
+async function rodarRegua(lojista_id_filtro = null) {
+  console.log('[RÉGUA] Iniciando:', new Date().toISOString(), lojista_id_filtro ? `lojista=${lojista_id_filtro}` : 'todos');
   const parcelasAlvo = await dbAll(`
     SELECT p.id, p.numero, p.valor, p.vencimento, p.status, p.pix_code,
       c.id as cob_id, c.lojista_id, c.descricao, c.total_parcelas,
@@ -597,7 +601,8 @@ async function rodarRegua() {
     JOIN cobrancas c ON c.id = p.cobranca_id
     JOIN clientes cli ON cli.id = c.cliente_id
     WHERE p.status IN ('pendente','prometeu') AND p.vencimento <= date('now')
-  `, []);
+    ${lojista_id_filtro ? 'AND c.lojista_id = ?' : ''}
+  `, lojista_id_filtro ? [lojista_id_filtro] : []);
 
   let enviados = 0, erros = 0;
   const empresaCache = {};
@@ -644,8 +649,18 @@ async function rodarRegua() {
   console.log(`[RÉGUA] Enviados: ${enviados}, Erros: ${erros}`);
 }
 
-// Todo dia às 8h Brasília (11h UTC)
-cron.schedule('0 11 * * *', rodarRegua);
+// Toda hora verifica quais lojistas têm envio programado para essa hora (BRT = UTC-3)
+cron.schedule('0 * * * *', async () => {
+  const brtHour = (new Date().getUTCHours() - 3 + 24) % 24;
+  console.log(`[CRON] Hora BRT: ${brtHour}h`);
+  const configs = await dbAll('SELECT lojista_id, horarios_envio FROM config');
+  for (const cfg of configs) {
+    const horarios = JSON.parse(cfg.horarios_envio || '[8]');
+    if (horarios.map(Number).includes(brtHour)) {
+      await rodarRegua(cfg.lojista_id);
+    }
+  }
+});
 
 app.post('/api/regua/disparar-agora', authMiddleware, async (req, res) => {
   await rodarRegua();

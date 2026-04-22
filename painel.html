@@ -209,6 +209,20 @@
         </div>
       </div>
 
+      <!-- Horários de envio -->
+      <div class="table-card" style="padding:1.5rem;margin-bottom:1rem">
+        <div style="font-size:15px;font-weight:500;margin-bottom:.25rem">Horários de envio</div>
+        <div style="font-size:13px;color:var(--muted);margin-bottom:1.25rem">Defina em quais horários as mensagens automáticas serão disparadas. Pode adicionar quantos quiser.</div>
+        <div id="horarios-lista" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:1rem"></div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <select id="horario-novo" style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:14px;color:var(--text);font-family:'DM Sans',sans-serif;outline:none">
+            ${Array.from({length:24},(_,i)=>`<option value="${i}">${String(i).padStart(2,'0')}:00</option>`).join('')}
+          </select>
+          <button class="btn-primary" onclick="adicionarHorario()" style="width:auto;padding:9px 18px">+ Adicionar</button>
+        </div>
+        <div id="horarios-status" style="display:none;margin-top:.75rem;padding:.6rem 1rem;border-radius:8px;font-size:13px;text-align:center"></div>
+      </div>
+
       <!-- OpenPix -->
       <div class="table-card" style="padding:1.5rem">
         <div style="font-size:15px;font-weight:500;margin-bottom:.25rem">PIX (OpenPix)</div>
@@ -542,18 +556,69 @@ function toggleVoz(id, ativo) {
   salvarMensagem(id);
 }
 
+let horariosEnvio = [8];
+
 async function carregarConfig() {
   // Carrega perfil
   const rp = await api('/auth/me');
   const perfil = await rp.json();
   if (document.getElementById('cfg-nome')) document.getElementById('cfg-nome').value = perfil.nome || '';
   if (document.getElementById('cfg-empresa')) document.getElementById('cfg-empresa').value = perfil.nome_empresa || '';
-  // Carrega openpix + vapi
+  // Carrega config
   const r = await api('/regua/config');
   const d = await r.json();
   if (document.getElementById('cfg-openpix')) document.getElementById('cfg-openpix').value = d.openpix_app_id || '';
+  // Carrega horários
+  try { horariosEnvio = JSON.parse(d.horarios_envio || '[8]'); } catch { horariosEnvio = [8]; }
+  renderHorarios();
   // Verifica status do WhatsApp
   verificarStatusWpp();
+}
+
+function renderHorarios() {
+  const lista = document.getElementById('horarios-lista');
+  if (!lista) return;
+  if (!horariosEnvio.length) {
+    lista.innerHTML = '<span style="font-size:13px;color:var(--muted)">Nenhum horário configurado</span>';
+    return;
+  }
+  lista.innerHTML = [...horariosEnvio].sort((a,b)=>a-b).map(h => `
+    <div style="display:flex;align-items:center;gap:6px;background:rgba(0,200,150,.1);border:1px solid rgba(0,200,150,.2);border-radius:99px;padding:5px 12px;font-size:13px;color:var(--verde)">
+      ${String(h).padStart(2,'0')}:00
+      <span onclick="removerHorario(${h})" style="cursor:pointer;font-size:15px;color:var(--muted);line-height:1" title="Remover">×</span>
+    </div>
+  `).join('');
+}
+
+async function adicionarHorario() {
+  const h = parseInt(document.getElementById('horario-novo').value);
+  if (horariosEnvio.includes(h)) { mostrarStatusHorario('Esse horário já está na lista.', false); return; }
+  horariosEnvio.push(h);
+  renderHorarios();
+  await salvarHorarios();
+}
+
+async function removerHorario(h) {
+  horariosEnvio = horariosEnvio.filter(x => x !== h);
+  renderHorarios();
+  await salvarHorarios();
+}
+
+async function salvarHorarios() {
+  try {
+    await api('/regua/config', { method: 'PUT', body: { horarios_envio: horariosEnvio } });
+    mostrarStatusHorario('✓ Horários salvos!', true);
+  } catch { mostrarStatusHorario('Erro ao salvar.', false); }
+}
+
+function mostrarStatusHorario(txt, ok) {
+  const el = document.getElementById('horarios-status');
+  if (!el) return;
+  el.style.display = 'block';
+  el.style.background = ok ? 'rgba(0,200,150,.12)' : 'rgba(255,80,80,.1)';
+  el.style.color = ok ? 'var(--verde)' : '#ff5050';
+  el.textContent = txt;
+  setTimeout(() => el.style.display = 'none', 3000);
 }
 
 
