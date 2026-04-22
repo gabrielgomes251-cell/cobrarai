@@ -473,7 +473,10 @@ async function carregarRegua() {
   const [rRegua, rCfg] = await Promise.all([api('/regua'), api('/regua/config')]);
   const regua = await rRegua.json();
   const cfg = await rCfg.json();
-  try { horariosEnvio = JSON.parse(cfg.horarios_envio || '[8]').filter(h => !isNaN(h)); } catch { horariosEnvio = [8]; }
+  try { horariosEnvio = JSON.parse(cfg.horarios_envio || '[8]').filter(h => h !== null && h !== undefined && Number.isInteger(Number(h))); } catch { horariosEnvio = [8]; }
+  if (!horariosEnvio.length) horariosEnvio = [8];
+  // limpa dados inválidos salvando a lista corrigida
+  await api('/regua/config', { method: 'PUT', body: { horarios_envio: horariosEnvio } });
 
   const cont = document.getElementById('regua-content');
   cont.innerHTML = `
