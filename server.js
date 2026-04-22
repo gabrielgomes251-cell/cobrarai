@@ -475,7 +475,8 @@ app.post('/api/cobrancas/parcela/:id/gerar-pix', authMiddleware, async (req, res
 
 app.post('/api/webhook/openpix', express.raw({ type: '*/*' }), async (req, res) => {
   try {
-    const body = JSON.parse(req.body.toString());
+    const body = Buffer.isBuffer(req.body) ? JSON.parse(req.body.toString()) :
+                 (typeof req.body === 'object' && req.body !== null ? req.body : JSON.parse(String(req.body)));
     if (body.event === 'OPENPIX:CHARGE_COMPLETED' && body.charge?.correlationID) {
       const parcelaId = body.charge.correlationID;
 
@@ -484,7 +485,7 @@ app.post('/api/webhook/openpix', express.raw({ type: '*/*' }), async (req, res) 
 
       // Busca dados para enviar mensagem de confirmação
       const dados = await dbGet(`
-        SELECT p.valor, p.numero, p.total_parcelas,
+        SELECT p.valor, p.numero, c.total_parcelas,
           c.lojista_id, c.descricao,
           cli.nome as cliente_nome, cli.telefone as cliente_tel,
           l.nome_empresa, l.nome as lojista_nome

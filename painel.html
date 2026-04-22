@@ -671,7 +671,7 @@ async function carregarRegua() {
                   rows="3"
                   style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.625rem .875rem;font-size:13px;color:var(--text);resize:vertical;line-height:1.6;margin-bottom:1rem;font-family:'DM Sans',sans-serif;outline:none"
                   onblur="salvarMensagem(${item.id})"
-                  onfocus="this.style.borderColor='var(--verde)'" onblur2="this.style.borderColor='var(--border)'"
+                  onfocus="this.style.borderColor='var(--verde)'"
                 >${item.mensagem_wpp || ''}</textarea>
 
                 <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
@@ -1143,7 +1143,7 @@ async function salvarCobranca() {
   const r = await api('/cobrancas', {method:'POST', body:{cliente_id, descricao, valor_total, total_parcelas, taxa_juros, data_primeira_parcela}});
   const d = await r.json();
   fecharModal('modal-cobranca');
-  if (d.parcelas && d.parcelas[0]?.pixCode) verPix(d.parcelas[0].pixCode);
+  if (d.parcelas && d.parcelas[0]?.pix_code) verPix(d.parcelas[0].pix_code);
   carregarDashboard();
 }
 
