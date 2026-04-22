@@ -1,0 +1,41 @@
+{
+  "editor.formatOnSave": true,
+  "editor.tabSize": 2,
+  "editor.insertSpaces": true,
+  "editor.detectIndentation": false,
+  "editor.wordWrap": "on",
+  "editor.minimap.enabled": false,
+  "files.eol": "\n",
+  "files.trimTrailingWhitespace": true,
+
+  // JavaScript / Node.js
+  "[javascript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[json]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[html]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+
+  // Esconder pastas desnecessárias do explorer
+  "files.exclude": {
+    "node_modules": true,
+    "*.db-shm": true,
+    "*.db-wal": true
+  },
+
+  // Esconder do search
+  "search.exclude": {
+    "node_modules": true,
+    "package-lock.json": true
+  },
+
+  // ESLint
+  "eslint.enable": true,
+  "eslint.run": "onSave",
+
+  // Terminal padrão
+  "terminal.integrated.defaultProfile.windows": "Git Bash"
+}

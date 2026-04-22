@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CobrarAí — Entrar</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --verde: #00C896;
+    --verde-dark: #00A07A;
+    --verde-glow: rgba(0,200,150,0.18);
+    --bg: #0A0F0D;
+    --bg2: #111916;
+    --card: #161E1A;
+    --border: rgba(0,200,150,0.12);
+    --border-hover: rgba(0,200,150,0.3);
+    --text: #E8F5F0;
+    --muted: #6B8F80;
+    --danger: #FF5A5A;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* ── Background animado ── */
+  .bg-grid {
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,200,150,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,200,150,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+  }
+
+  .bg-glow {
+    position: fixed;
+    width: 600px;
+    height: 600px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(0,200,150,0.07) 0%, transparent 70%);
+    top: -200px;
+    right: -200px;
+    pointer-events: none;
+    animation: pulse-glow 6s ease-in-out infinite;
+  }
+
+  .bg-glow2 {
+    position: fixed;
+    width: 400px;
+    height: 400px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(0,200,150,0.05) 0%, transparent 70%);
+    bottom: -100px;
+    left: -100px;
+    pointer-events: none;
+    animation: pulse-glow 8s ease-in-out infinite reverse;
+  }
+
+  @keyframes pulse-glow {
+    0%, 100% { opacity: 0.6; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.1); }
+  }
+
+  /* ── Partículas flutuantes ── */
+  .particles {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    overflow: hidden;
+  }
+
+  .particle {
+    position: absolute;
+    width: 2px;
+    height: 2px;
+    background: var(--verde);
+    border-radius: 50%;
+    opacity: 0;
+    animation: float-up linear infinite;
+  }
+
+  @keyframes float-up {
+    0% { opacity: 0; transform: translateY(0) scale(0); }
+    10% { opacity: 0.6; transform: translateY(-20px) scale(1); }
+    90% { opacity: 0.2; }
+    100% { opacity: 0; transform: translateY(-120vh) scale(0.5); }
+  }
+
+  /* ── Layout ── */
+  .wrapper {
+    position: relative;
+    z-index: 10;
+    width: 100%;
+    max-width: 420px;
+    padding: 1.5rem;
+    animation: fade-in 0.6s ease both;
+  }
+
+  @keyframes fade-in {
+    from { opacity: 0; transform: translateY(24px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ── Logo ── */
+  .logo-area {
+    text-align: center;
+    margin-bottom: 2.5rem;
+    animation: fade-in 0.6s ease 0.1s both;
+  }
+
+  .logo-icon {
+    width: 52px;
+    height: 52px;
+    background: linear-gradient(135deg, var(--verde), var(--verde-dark));
+    border-radius: 14px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1rem;
+    box-shadow: 0 0 30px rgba(0,200,150,0.3);
+    font-size: 24px;
+  }
+
+  .logo-name {
+    font-family: 'Syne', sans-serif;
+    font-size: 28px;
+    font-weight: 800;
+    color: var(--verde);
+    letter-spacing: -0.5px;
+  }
+
+  .logo-tagline {
+    font-size: 13px;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+
+  /* ── Card ── */
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 2rem;
+    box-shadow: 0 24px 60px rgba(0,0,0,0.4), 0 0 0 1px rgba(0,200,150,0.04);
+    animation: fade-in 0.6s ease 0.2s both;
+    backdrop-filter: blur(10px);
+  }
+
+  /* ── Tabs ── */
+  .tabs {
+    display: flex;
+    background: var(--bg2);
+    border-radius: 10px;
+    padding: 4px;
+    margin-bottom: 1.75rem;
+    gap: 4px;
+  }
+
+  .tab {
+    flex: 1;
+    padding: 9px;
+    border: none;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 500;
+    font-family: 'DM Sans', sans-serif;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .tab.active {
+    background: var(--card);
+    color: var(--text);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  }
+
+  /* ── Forms ── */
+  .form { display: none; }
+  .form.active { display: block; }
+
+  .form-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+
+  .form-sub {
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 1.5rem;
+  }
+
+  .field {
+    margin-bottom: 1rem;
+  }
+
+  .field label {
+    display: block;
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 6px;
+    letter-spacing: 0.3px;
+  }
+
+  .field input {
+    width: 100%;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 11px 14px;
+    font-size: 14px;
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+
+  .field input:focus {
+    border-color: var(--verde);
+    box-shadow: 0 0 0 3px rgba(0,200,150,0.08);
+  }
+
+  .field input::placeholder {
+    color: rgba(107,143,128,0.5);
+  }
+
+  .field-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  /* ── Botão ── */
+  .btn-primary {
+    width: 100%;
+    padding: 12px;
+    background: var(--verde);
+    color: #000;
+    border: none;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    font-family: 'DM Sans', sans-serif;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-top: 0.5rem;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .btn-primary::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to right, transparent, rgba(255,255,255,0.1), transparent);
+    transform: translateX(-100%);
+    transition: transform 0.4s;
+  }
+
+  .btn-primary:hover {
+    background: var(--verde-dark);
+    transform: translateY(-1px);
+    box-shadow: 0 8px 20px rgba(0,200,150,0.25);
+  }
+
+  .btn-primary:hover::after {
+    transform: translateX(100%);
+  }
+
+  .btn-primary:active {
+    transform: translateY(0);
+  }
+
+  .btn-primary:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  /* ── Erro / sucesso ── */
+  .msg {
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 13px;
+    margin-bottom: 1rem;
+    display: none;
+  }
+
+  .msg.erro {
+    background: rgba(255,90,90,0.1);
+    border: 1px solid rgba(255,90,90,0.2);
+    color: var(--danger);
+    display: block;
+  }
+
+  .msg.ok {
+    background: rgba(0,200,150,0.1);
+    border: 1px solid rgba(0,200,150,0.2);
+    color: var(--verde);
+    display: block;
+  }
+
+  /* ── Rodapé ── */
+  .footer {
+    text-align: center;
+    margin-top: 1.5rem;
+    font-size: 12px;
+    color: var(--muted);
+    animation: fade-in 0.6s ease 0.4s both;
+  }
+
+  /* ── Loading spinner ── */
+  .spinner {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border: 2px solid rgba(0,0,0,0.3);
+    border-top-color: #000;
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+    vertical-align: middle;
+    margin-right: 6px;
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  /* ── Stats decorativas ── */
+  .stats-bar {
+    display: flex;
+    justify-content: center;
+    gap: 1.5rem;
+    margin-top: 1.5rem;
+    animation: fade-in 0.6s ease 0.5s both;
+  }
+
+  .stat-item {
+    text-align: center;
+  }
+
+  .stat-val {
+    font-family: 'Syne', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--verde);
+  }
+
+  .stat-lbl {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  .stat-sep {
+    width: 1px;
+    background: var(--border);
+    align-self: stretch;
+  }
+</style>
+</head>
+<body>
+
+<div class="bg-grid"></div>
+<div class="bg-glow"></div>
+<div class="bg-glow2"></div>
+
+<div class="particles" id="particles"></div>
+
+<div class="wrapper">
+
+  <div class="logo-area">
+    <div class="logo-icon">◈</div>
+    <div class="logo-name">CobrarAí</div>
+    <div class="logo-tagline">Cobranças inteligentes com PIX & WhatsApp</div>
+  </div>
+
+  <div class="card">
+    <div class="tabs">
+      <button class="tab active" onclick="trocarTab('login', this)">Entrar</button>
+      <button class="tab" onclick="trocarTab('cadastro', this)">Criar conta</button>
+    </div>
+
+    <!-- LOGIN -->
+    <div id="form-login" class="form active">
+      <div class="form-title">Bem-vindo de volta</div>
+      <div class="form-sub">Entre na sua conta para continuar</div>
+      <div id="msg-login" class="msg"></div>
+      <div class="field">
+        <label>E-mail</label>
+        <input type="email" id="login-email" placeholder="seu@email.com" autocomplete="email">
+      </div>
+      <div class="field">
+        <label>Senha</label>
+        <input type="password" id="login-senha" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter') fazerLogin()">
+      </div>
+      <button class="btn-primary" id="btn-login" onclick="fazerLogin()">Entrar</button>
+    </div>
+
+    <!-- CADASTRO -->
+    <div id="form-cadastro" class="form">
+      <div class="form-title">Criar sua conta</div>
+      <div class="form-sub">Comece a cobrar em minutos</div>
+      <div id="msg-cadastro" class="msg"></div>
+      <div class="field">
+        <label>Nome completo</label>
+        <input type="text" id="cad-nome" placeholder="Seu nome" autocomplete="name">
+      </div>
+      <div class="field">
+        <label>E-mail</label>
+        <input type="email" id="cad-email" placeholder="seu@email.com" autocomplete="email">
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>Senha</label>
+          <input type="password" id="cad-senha" placeholder="Mínimo 6 caracteres">
+        </div>
+        <div class="field">
+          <label>WhatsApp</label>
+          <input type="tel" id="cad-tel" placeholder="(62) 99999-9999">
+        </div>
+      </div>
+      <button class="btn-primary" id="btn-cadastro" onclick="fazerCadastro()">Criar conta grátis</button>
+    </div>
+  </div>
+
+  <div class="stats-bar">
+    <div class="stat-item">
+      <div class="stat-val">PIX</div>
+      <div class="stat-lbl">Parcelado</div>
+    </div>
+    <div class="stat-sep"></div>
+    <div class="stat-item">
+      <div class="stat-val">WPP</div>
+      <div class="stat-lbl">Automático</div>
+    </div>
+    <div class="stat-sep"></div>
+    <div class="stat-item">
+      <div class="stat-val">IA</div>
+      <div class="stat-lbl">Voz & Chat</div>
+    </div>
+  </div>
+
+  <div class="footer">© 2024 CobrarAí · Todos os direitos reservados</div>
+</div>
+
+<script>
+const API = '/api';
+
+// ── Partículas ──
+(function() {
+  const cont = document.getElementById('particles');
+  for (let i = 0; i < 20; i++) {
+    const p = document.createElement('div');
+    p.className = 'particle';
+    p.style.left = Math.random() * 100 + '%';
+    p.style.animationDuration = (8 + Math.random() * 12) + 's';
+    p.style.animationDelay = (Math.random() * 10) + 's';
+    p.style.width = p.style.height = (1 + Math.random() * 2) + 'px';
+    cont.appendChild(p);
+  }
+})();
+
+// ── Tabs ──
+function trocarTab(tab, btn) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.form').forEach(f => f.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('form-' + tab).classList.add('active');
+  limparMsgs();
+}
+
+function limparMsgs() {
+  document.querySelectorAll('.msg').forEach(m => { m.className = 'msg'; m.textContent = ''; });
+}
+
+function mostrarMsg(id, texto, tipo) {
+  const el = document.getElementById(id);
+  el.className = 'msg ' + tipo;
+  el.textContent = texto;
+}
+
+function setLoading(btnId, loading) {
+  const btn = document.getElementById(btnId);
+  if (loading) {
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span>Aguarde...';
+  } else {
+    btn.disabled = false;
+    btn.innerHTML = btnId === 'btn-login' ? 'Entrar' : 'Criar conta grátis';
+  }
+}
+
+// ── Login ──
+async function fazerLogin() {
+  const email = document.getElementById('login-email').value.trim();
+  const senha = document.getElementById('login-senha').value;
+  limparMsgs();
+
+  if (!email || !senha) return mostrarMsg('msg-login', 'Preencha e-mail e senha.', 'erro');
+
+  setLoading('btn-login', true);
+  try {
+    const r = await fetch(API + '/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, senha }),
+    });
+    const d = await r.json();
+    if (!r.ok) return mostrarMsg('msg-login', d.erro || 'Erro ao entrar.', 'erro');
+
+    localStorage.setItem('token', d.token);
+    localStorage.setItem('lojista', JSON.stringify(d.lojista));
+    mostrarMsg('msg-login', '✓ Entrando...', 'ok');
+    setTimeout(() => window.location.href = 'painel.html', 800);
+  } catch (e) {
+    mostrarMsg('msg-login', 'Não foi possível conectar ao servidor. Verifique se o backend está rodando.', 'erro');
+  } finally {
+    setLoading('btn-login', false);
+  }
+}
+
+// ── Cadastro ──
+async function fazerCadastro() {
+  const nome     = document.getElementById('cad-nome').value.trim();
+  const email    = document.getElementById('cad-email').value.trim();
+  const senha    = document.getElementById('cad-senha').value;
+  const telefone = document.getElementById('cad-tel').value.trim();
+  limparMsgs();
+
+  if (!nome || !email || !senha) return mostrarMsg('msg-cadastro', 'Preencha nome, e-mail e senha.', 'erro');
+  if (senha.length < 6) return mostrarMsg('msg-cadastro', 'A senha precisa ter pelo menos 6 caracteres.', 'erro');
+
+  setLoading('btn-cadastro', true);
+  try {
+    const r = await fetch(API + '/auth/cadastro', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nome, email, senha, telefone }),
+    });
+    const d = await r.json();
+    if (!r.ok) return mostrarMsg('msg-cadastro', d.erro || 'Erro ao criar conta.', 'erro');
+
+    localStorage.setItem('token', d.token);
+    localStorage.setItem('lojista', JSON.stringify(d.lojista));
+    mostrarMsg('msg-cadastro', '✓ Conta criada! Redirecionando...', 'ok');
+    setTimeout(() => window.location.href = 'painel.html', 800);
+  } catch (e) {
+    mostrarMsg('msg-cadastro', 'Não foi possível conectar ao servidor.', 'erro');
+  } finally {
+    setLoading('btn-cadastro', false);
+  }
+}
+
+// Se já tiver token, vai direto pro painel
+if (localStorage.getItem('token')) {
+  window.location.href = 'painel.html';
+}
+</script>
+</body>
+</html>

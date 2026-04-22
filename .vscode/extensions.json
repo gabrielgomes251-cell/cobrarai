@@ -1,0 +1,10 @@
+{
+  "recommendations": [
+    "esbenp.prettier-vscode",
+    "dbaeumer.vscode-eslint",
+    "PKief.material-icon-theme",
+    "christian-kohler.path-intellisense",
+    "qufiwefefwoyn.kanbn",
+    "humao.rest-client"
+  ]
+}

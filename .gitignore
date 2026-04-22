@@ -1,0 +1,8 @@
+node_modules/
+cobrarai.db
+cobrarai.db-shm
+cobrarai.db-wal
+.env
+*.db
+*.db-shm
+*.db-wal

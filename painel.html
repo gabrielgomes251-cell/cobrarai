@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CobrarAí — Painel</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root { --verde:#00C896; --verde-dark:#00A07A; --bg:#0A0F0D; --bg2:#111916; --card:#161E1A; --border:rgba(0,200,150,0.12); --text:#E8F5F0; --muted:#6B8F80; --danger:#FF5A5A; --warning:#F5A623; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:var(--bg); color:var(--text); font-family:'DM Sans',sans-serif; min-height:100vh; display:flex; }
+  /* SIDEBAR */
+  .sidebar { width:220px; min-width:220px; background:var(--bg2); border-right:1px solid var(--border); padding:1.5rem 1rem; display:flex; flex-direction:column; }
+  .logo { font-family:'Syne',sans-serif; font-size:22px; font-weight:700; color:var(--verde); margin-bottom:2rem; padding:0 .5rem; }
+  .nav-item { display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:8px; cursor:pointer; color:var(--muted); font-size:14px; transition:all .15s; margin-bottom:2px; }
+  .nav-item:hover { background:rgba(0,200,150,.08); color:var(--text); }
+  .nav-item.active { background:rgba(0,200,150,.12); color:var(--verde); }
+  .nav-icon { width:18px; text-align:center; }
+  .sidebar-footer { margin-top:auto; border-top:1px solid var(--border); padding-top:1rem; }
+  .user-info { font-size:13px; color:var(--muted); padding:.5rem; }
+  .user-name { color:var(--text); font-weight:500; font-size:14px; }
+  .btn-sair { width:100%; padding:8px; background:transparent; border:1px solid var(--border); border-radius:8px; color:var(--muted); font-size:13px; cursor:pointer; margin-top:8px; font-family:'DM Sans',sans-serif; }
+  .btn-sair:hover { border-color:var(--danger); color:var(--danger); }
+  /* MAIN */
+  .main { flex:1; overflow-y:auto; }
+  .topbar { padding:1.25rem 2rem; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; }
+  .page-title { font-family:'Syne',sans-serif; font-size:20px; font-weight:600; }
+  .btn-primary { background:var(--verde); color:#000; border:none; border-radius:8px; padding:9px 18px; font-size:14px; font-weight:500; font-family:'DM Sans',sans-serif; cursor:pointer; transition:background .15s; }
+  .btn-primary:hover { background:var(--verde-dark); }
+  .content { padding:2rem; }
+  /* MÉTRICAS */
+  .metrics { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:2rem; }
+  .metric { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:1.25rem; }
+  .metric-label { font-size:12px; color:var(--muted); margin-bottom:8px; }
+  .metric-val { font-size:24px; font-weight:500; font-family:'Syne',sans-serif; }
+  .metric-val.verde { color:var(--verde); }
+  .metric-val.warning { color:var(--warning); }
+  .metric-val.danger { color:var(--danger); }
+  .metric-sub { font-size:12px; color:var(--muted); margin-top:4px; }
+  /* TABELA */
+  .table-card { background:var(--card); border:1px solid var(--border); border-radius:12px; overflow:hidden; }
+  .table-header { padding:1rem 1.25rem; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border); }
+  .table-title { font-size:15px; font-weight:500; }
+  .filters { display:flex; gap:6px; }
+  .filter-btn { padding:5px 12px; border-radius:99px; border:1px solid var(--border); background:transparent; color:var(--muted); font-size:12px; cursor:pointer; font-family:'DM Sans',sans-serif; transition:all .15s; }
+  .filter-btn.active { background:var(--verde); color:#000; border-color:var(--verde); }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th { padding:10px 14px; text-align:left; color:var(--muted); font-weight:400; font-size:12px; border-bottom:1px solid var(--border); white-space:nowrap; }
+  td { padding:12px 14px; border-bottom:1px solid rgba(0,200,150,.05); vertical-align:middle; }
+  tr:last-child td { border-bottom:none; }
+  tr:hover td { background:rgba(0,200,150,.03); }
+  .badge { display:inline-block; font-size:11px; padding:3px 9px; border-radius:99px; font-weight:500; }
+  .b-pago    { background:rgba(0,200,150,.15); color:var(--verde); }
+  .b-atraso  { background:rgba(255,90,90,.15); color:var(--danger); }
+  .b-prom    { background:rgba(245,166,35,.15); color:var(--warning); }
+  .b-wpp     { background:rgba(100,150,255,.15); color:#6496ff; }
+  .b-voz     { background:rgba(200,100,255,.15); color:#c864ff; }
+  .b-ativo   { background:rgba(0,200,150,.1); color:var(--verde); }
+  .btn-sm { padding:5px 10px; border-radius:6px; border:1px solid var(--border); background:transparent; color:var(--muted); font-size:12px; cursor:pointer; font-family:'DM Sans',sans-serif; transition:all .15s; }
+  .btn-sm:hover { border-color:var(--verde); color:var(--verde); }
+  /* MODAL */
+  .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.7); display:flex; align-items:center; justify-content:center; z-index:100; display:none; }
+  .modal-overlay.open { display:flex; }
+  .modal { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:1.75rem; width:100%; max-width:520px; max-height:90vh; overflow-y:auto; }
+  .modal-title { font-family:'Syne',sans-serif; font-size:18px; font-weight:600; margin-bottom:1.5rem; }
+  .field { margin-bottom:1rem; }
+  .field label { display:block; font-size:12px; color:var(--muted); margin-bottom:6px; }
+  .field input, .field select, .field textarea { width:100%; background:var(--bg2); border:1px solid var(--border); border-radius:8px; padding:10px 12px; font-size:14px; color:var(--text); font-family:'DM Sans',sans-serif; outline:none; }
+  .field input:focus, .field select:focus { border-color:var(--verde); }
+  .field select option { background:var(--bg2); }
+  .field-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .modal-footer { display:flex; gap:10px; justify-content:flex-end; margin-top:1.5rem; }
+  .btn-cancel { padding:10px 18px; border:1px solid var(--border); background:transparent; border-radius:8px; color:var(--muted); font-size:14px; cursor:pointer; font-family:'DM Sans',sans-serif; }
+  /* PANEL PAGES */
+  .page { display:none; }
+  .page.active { display:block; }
+  /* EMPTY */
+  .empty { text-align:center; padding:3rem; color:var(--muted); }
+  .empty-icon { font-size:40px; margin-bottom:1rem; opacity:.3; }
+</style>
+</head>
+<body>
+
+<div class="sidebar">
+  <div class="logo">CobrarAí</div>
+  <div class="nav-item active" onclick="irPara('dashboard')"><span class="nav-icon">◈</span> Dashboard</div>
+  <div class="nav-item" onclick="irPara('cobrancas')"><span class="nav-icon">◎</span> Cobranças</div>
+  <div class="nav-item" onclick="irPara('clientes')"><span class="nav-icon">◉</span> Clientes</div>
+  <div class="nav-item" onclick="irPara('regua')"><span class="nav-icon">◇</span> Mensagens</div>
+  <div class="nav-item" onclick="irPara('config')"><span class="nav-icon">◈</span> Configurações</div>
+  <div class="sidebar-footer">
+    <div class="user-info">
+      <div class="user-name" id="user-nome">—</div>
+      <div id="user-email" style="font-size:12px">—</div>
+    </div>
+    <button class="btn-sair" onclick="sair()">Sair</button>
+  </div>
+</div>
+
+<div class="main">
+  <!-- DASHBOARD -->
+  <div id="page-dashboard" class="page active">
+    <div class="topbar"><div class="page-title">Dashboard</div><button class="btn-primary" onclick="abrirModalCobranca()">+ Nova cobrança</button></div>
+    <div class="content">
+      <div class="metrics">
+        <div class="metric"><div class="metric-label">Em aberto</div><div class="metric-val verde" id="m-aberto">—</div><div class="metric-sub" id="m-aberto-qtd">cobranças</div></div>
+        <div class="metric"><div class="metric-label">Em atraso</div><div class="metric-val danger" id="m-atraso">—</div><div class="metric-sub" id="m-atraso-qtd">parcelas</div></div>
+        <div class="metric"><div class="metric-label">Recebido no mês</div><div class="metric-val" id="m-recebido">—</div><div class="metric-sub">este mês</div></div>
+        <div class="metric"><div class="metric-label">Prometeram pagar</div><div class="metric-val warning" id="m-prometeu">—</div><div class="metric-sub">aguardando</div></div>
+      </div>
+      <div class="table-card">
+        <div class="table-header">
+          <div class="table-title">Parcelas recentes</div>
+          <div class="filters">
+            <button class="filter-btn active" onclick="filtrarParcelas('todas',this)">Todas</button>
+            <button class="filter-btn" onclick="filtrarParcelas('pendente',this)">Pendentes</button>
+            <button class="filter-btn" onclick="filtrarParcelas('atraso',this)">Atrasadas</button>
+            <button class="filter-btn" onclick="filtrarParcelas('pago',this)">Pagas</button>
+          </div>
+        </div>
+        <table><thead><tr><th>Cliente</th><th>Descrição</th><th>Parcela</th><th>Valor</th><th>Vencimento</th><th>Status</th><th>Ações</th></tr></thead>
+        <tbody id="tb-parcelas"><tr><td colspan="7" style="text-align:center;padding:2rem;color:var(--muted)">Carregando...</td></tr></tbody></table>
+      </div>
+    </div>
+  </div>
+
+  <!-- CLIENTES -->
+  <div id="page-clientes" class="page">
+    <div class="topbar"><div class="page-title">Clientes</div><button class="btn-primary" onclick="abrirModalCliente()">+ Novo cliente</button></div>
+    <div class="content">
+      <div class="table-card">
+        <div class="table-header"><div class="table-title">Todos os clientes</div></div>
+        <table><thead><tr><th>Nome</th><th>CPF</th><th>Telefone</th><th>Tipo</th><th>Cobranças</th><th>Em atraso</th><th>Ações</th></tr></thead>
+        <tbody id="tb-clientes"></tbody></table>
+      </div>
+    </div>
+  </div>
+
+  <!-- COBRANÇAS -->
+  <div id="page-cobrancas" class="page">
+    <div class="topbar"><div class="page-title">Cobranças</div><button class="btn-primary" onclick="abrirModalCobranca()">+ Nova cobrança</button></div>
+    <div class="content">
+      <div class="table-card">
+        <div class="table-header"><div class="table-title">Todas as cobranças</div></div>
+        <table><thead><tr><th>Cliente</th><th>Descrição</th><th>Total</th><th>Parcelas</th><th>Pagas</th><th>Atrasadas</th><th>Status</th></tr></thead>
+        <tbody id="tb-cobrancas"></tbody></table>
+      </div>
+    </div>
+  </div>
+
+  <!-- RÉGUA -->
+  <div id="page-regua" class="page">
+    <div class="topbar"><div class="page-title">Mensagens Automáticas</div></div>
+    <div class="content" id="regua-content"></div>
+  </div>
+
+  <!-- CONFIG -->
+  <div id="page-config" class="page">
+    <div class="topbar"><div class="page-title">Configurações</div></div>
+    <div class="content" style="max-width:520px">
+
+      <!-- Perfil / Empresa -->
+      <div class="table-card" style="padding:1.5rem;margin-bottom:1rem">
+        <div style="font-size:15px;font-weight:500;margin-bottom:.25rem">Seus dados</div>
+        <div style="font-size:13px;color:var(--muted);margin-bottom:1.25rem">O nome da empresa aparece nas mensagens enviadas aos seus clientes. Você pode alterar quando quiser.</div>
+        <div class="field">
+          <label>Seu nome</label>
+          <input id="cfg-nome" placeholder="Seu nome completo">
+        </div>
+        <div class="field" style="margin-top:.75rem">
+          <label>Nome da empresa <span style="color:var(--verde);font-size:11px">(aparece nas mensagens como {empresa})</span></label>
+          <input id="cfg-empresa" placeholder="Ex: Loja do João, Clínica Silva, Oficina do Pedro...">
+        </div>
+        <button class="btn-primary" onclick="salvarPerfil()" style="margin-top:.75rem;width:100%">Salvar dados</button>
+        <div id="perfil-status-msg" style="display:none;margin-top:.75rem;padding:.6rem 1rem;border-radius:8px;font-size:13px;text-align:center"></div>
+      </div>
+
+      <!-- WhatsApp -->
+      <div class="table-card" style="padding:1.5rem;margin-bottom:1rem">
+        <div style="font-size:15px;font-weight:500;margin-bottom:.25rem">WhatsApp</div>
+        <div style="font-size:13px;color:var(--muted);margin-bottom:1.25rem">Conecte seu WhatsApp para enviar cobranças automaticamente</div>
+
+        <!-- Status -->
+        <div id="wpp-status-bar" style="display:flex;align-items:center;gap:10px;padding:12px;background:var(--bg2);border-radius:10px;margin-bottom:1.25rem">
+          <div id="wpp-status-dot" style="width:10px;height:10px;border-radius:50%;background:var(--muted);flex-shrink:0"></div>
+          <div>
+            <div id="wpp-status-txt" style="font-size:13px;font-weight:500">Verificando...</div>
+            <div id="wpp-status-sub" style="font-size:12px;color:var(--muted)">Aguarde</div>
+          </div>
+        </div>
+
+        <!-- QR Code area -->
+        <div id="wpp-qr-area" style="display:none;text-align:center;margin-bottom:1.25rem">
+          <div style="font-size:13px;color:var(--muted);margin-bottom:12px">Abra o WhatsApp no celular → <b style="color:var(--text)">Dispositivos conectados → Conectar dispositivo</b> → Escanear QR Code</div>
+          <div id="wpp-qr-img" style="background:#fff;padding:12px;border-radius:12px;display:inline-block"></div>
+          <div style="font-size:12px;color:var(--muted);margin-top:10px">O QR Code expira em 60 segundos. Clique em "Atualizar QR" se expirar.</div>
+          <div style="margin-top:12px;display:flex;gap:8px;justify-content:center">
+            <button class="btn-sm" onclick="carregarConfig()">↺ Atualizar QR</button>
+            <button class="btn-sm" onclick="verificarStatusWpp()">✓ Já escanei</button>
+          </div>
+        </div>
+
+        <!-- Botões -->
+        <div id="wpp-btn-conectar">
+          <button class="btn-primary" onclick="conectarWhatsapp()" id="btn-wpp-conectar">📱 Conectar WhatsApp</button>
+        </div>
+        <div id="wpp-btn-desconectar" style="display:none">
+          <button class="btn-primary" onclick="desconectarWhatsapp()" style="background:var(--danger);color:#fff">Desconectar WhatsApp</button>
+        </div>
+      </div>
+
+      <!-- OpenPix -->
+      <div class="table-card" style="padding:1.5rem">
+        <div style="font-size:15px;font-weight:500;margin-bottom:.25rem">PIX (OpenPix)</div>
+        <div style="font-size:13px;color:var(--muted);margin-bottom:1.5rem">Integre com a OpenPix para gerar cobranças PIX automaticamente. É gratuito e leva menos de 5 minutos.</div>
+
+        <!-- Passo a passo -->
+        <div style="margin-bottom:1.5rem">
+          <div style="font-size:12px;font-weight:600;color:var(--verde);text-transform:uppercase;letter-spacing:.05em;margin-bottom:1rem">Como configurar — passo a passo</div>
+
+          <div style="display:flex;flex-direction:column;gap:.75rem">
+
+            <div style="display:flex;gap:12px;align-items:flex-start">
+              <div style="min-width:28px;height:28px;border-radius:50%;background:var(--verde);color:#000;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center">1</div>
+              <div>
+                <div style="font-size:13px;font-weight:500;margin-bottom:2px">Crie sua conta gratuita</div>
+                <div style="font-size:12px;color:var(--muted)">Acesse <a href="https://app.openpix.com.br/register" target="_blank" style="color:var(--verde)">app.openpix.com.br/register</a> e cadastre sua empresa. É grátis e sem mensalidade — a OpenPix cobra apenas 0,99% por transação PIX.</div>
+              </div>
+            </div>
+
+            <div style="display:flex;gap:12px;align-items:flex-start">
+              <div style="min-width:28px;height:28px;border-radius:50%;background:var(--verde);color:#000;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center">2</div>
+              <div>
+                <div style="font-size:13px;font-weight:500;margin-bottom:2px">Acesse API/Plugins</div>
+                <div style="font-size:12px;color:var(--muted)">Dentro da OpenPix, clique em <b style="color:var(--text)">API/Plugins</b> no menu lateral esquerdo.</div>
+              </div>
+            </div>
+
+            <div style="display:flex;gap:12px;align-items:flex-start">
+              <div style="min-width:28px;height:28px;border-radius:50%;background:var(--verde);color:#000;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center">3</div>
+              <div>
+                <div style="font-size:13px;font-weight:500;margin-bottom:2px">Crie um novo App</div>
+                <div style="font-size:12px;color:var(--muted)">Clique em <b style="color:var(--text)">+ Novo App</b>, dê um nome (ex: <i>CobrarAí</i>), selecione as permissões <b style="color:var(--text)">charge.create</b> e <b style="color:var(--text)">charge.read</b>, depois clique em <b style="color:var(--text)">Criar</b>.</div>
+              </div>
+            </div>
+
+            <div style="display:flex;gap:12px;align-items:flex-start">
+              <div style="min-width:28px;height:28px;border-radius:50%;background:var(--verde);color:#000;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center">4</div>
+              <div>
+                <div style="font-size:13px;font-weight:500;margin-bottom:2px">Copie o App ID</div>
+                <div style="font-size:12px;color:var(--muted)">Após criar, vai aparecer um código chamado <b style="color:var(--text)">App ID</b> — é uma sequência longa de letras e números. Copie ele e cole no campo abaixo.</div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Campo e botão -->
+        <div style="background:var(--bg2);border-radius:10px;padding:1rem">
+          <div class="field" style="margin-bottom:.75rem">
+            <label style="font-size:12px;font-weight:600">App ID da OpenPix</label>
+            <input id="cfg-openpix" placeholder="Cole aqui o App ID gerado na OpenPix" style="font-size:13px">
+          </div>
+          <button class="btn-primary" onclick="salvarConfigPix()" style="width:100%">Salvar configuração PIX</button>
+        </div>
+
+        <div id="pix-status-msg" style="display:none;margin-top:.75rem;padding:.6rem 1rem;border-radius:8px;font-size:13px;text-align:center"></div>
+
+        <div style="margin-top:1rem;padding:.75rem;background:rgba(0,200,150,.07);border:1px solid rgba(0,200,150,.2);border-radius:8px;font-size:12px;color:var(--muted)">
+          <b style="color:var(--verde)">Precisa de ajuda?</b> Acesse <a href="https://developers.openpix.com.br" target="_blank" style="color:var(--verde)">developers.openpix.com.br</a> ou entre em contato com o suporte da OpenPix pelo chat deles.
+        </div>
+      </div>
+
+
+    </div>
+  </div>
+</div>
+
+<!-- MODAL CLIENTE -->
+<div id="modal-cliente" class="modal-overlay">
+  <div class="modal">
+    <div class="modal-title">Novo cliente</div>
+    <div class="field"><label>Nome *</label><input id="cli-nome" placeholder="Nome completo"></div>
+    <div class="field-row">
+      <div class="field"><label>CPF</label><input id="cli-cpf" placeholder="000.000.000-00" maxlength="14"></div>
+      <div class="field"><label>Tipo</label><select id="cli-tipo"><option value="produto">Produto</option><option value="servico">Serviço</option></select></div>
+    </div>
+    <div class="field"><label>WhatsApp *</label><input id="cli-tel" placeholder="(62) 99999-9999"></div>
+    <div class="field"><label>E-mail</label><input id="cli-email" placeholder="cliente@email.com"></div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="fecharModal('modal-cliente')">Cancelar</button>
+      <button class="btn-primary" onclick="salvarCliente()">Salvar cliente</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL COBRANÇA -->
+<div id="modal-cobranca" class="modal-overlay">
+  <div class="modal">
+    <div class="modal-title">Nova cobrança</div>
+    <div class="field"><label>Cliente *</label><select id="cob-cliente"><option value="">Selecione...</option></select></div>
+    <div class="field"><label>Descrição</label><input id="cob-desc" placeholder="Ex: Notebook, Serviço de design..."></div>
+    <div class="field-row">
+      <div class="field"><label>Valor total (R$) *</label><input type="number" id="cob-valor" placeholder="0.00" min="1" step="0.01" oninput="calcParcelas()"></div>
+      <div class="field"><label>Parcelas</label><select id="cob-parcelas" onchange="calcParcelas()">
+        <option value="1">1x à vista</option>
+        <option value="2">2x</option><option value="3">3x</option><option value="4">4x</option>
+        <option value="5">5x</option><option value="6">6x</option><option value="12">12x</option>
+      </select></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Taxa de juros (%)</label><input type="number" id="cob-taxa" placeholder="0" step="0.1" value="0" oninput="calcParcelas()"></div>
+      <div class="field"><label>Vencimento 1ª parcela</label><input type="date" id="cob-venc"></div>
+    </div>
+    <div id="resumo-cob" style="background:var(--bg2);border-radius:8px;padding:12px;font-size:13px;color:var(--muted);margin-top:.5rem;display:none"></div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="fecharModal('modal-cobranca')">Cancelar</button>
+      <button class="btn-primary" onclick="salvarCobranca()">Gerar cobrança</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL PIX -->
+<div id="modal-pix" class="modal-overlay">
+  <div class="modal" style="text-align:center">
+    <div class="modal-title" style="text-align:left">PIX gerado</div>
+    <div id="pix-qr" style="margin:1rem 0"></div>
+    <div style="background:var(--bg2);border-radius:8px;padding:12px;font-size:11px;color:var(--muted);word-break:break-all;text-align:left;margin-bottom:1rem" id="pix-code-text"></div>
+    <button class="btn-primary" style="width:100%" onclick="copiarPix()">Copiar código PIX</button>
+    <div style="margin-top:.75rem"><button class="btn-cancel" style="width:100%" onclick="fecharModal('modal-pix')">Fechar</button></div>
+  </div>
+</div>
+
+<script>
+const API = '/api';
+let TOKEN = localStorage.getItem('token');
+let todosClientes = [];
+let todasParcelas = [];
+
+function api(path, opts={}) {
+  return fetch(API + path, { ...opts, headers: { 'Content-Type':'application/json', Authorization:`Bearer ${TOKEN}`, ...(opts.headers||{}) }, body: opts.body ? JSON.stringify(opts.body) : undefined });
+}
+
+function sair() { localStorage.clear(); window.location.href = 'index.html'; }
+
+function irPara(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  event.currentTarget.classList.add('active');
+  if (page === 'dashboard') carregarDashboard();
+  if (page === 'clientes') carregarClientes();
+  if (page === 'cobrancas') carregarCobrancas();
+  if (page === 'regua') carregarRegua();
+  if (page === 'config') carregarConfig();
+}
+
+function fmt(v) { return 'R$ ' + Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2}); }
+function fmtData(d) { if(!d) return '—'; const [y,m,dd] = d.split('-'); return `${dd}/${m}/${y}`; }
+function statusBadge(p) {
+  if (p.status === 'pago') return '<span class="badge b-pago">Pago</span>';
+  if (p.status === 'prometeu') return '<span class="badge b-prom">Prometeu pagar</span>';
+  if (p.vencimento < new Date().toISOString().split('T')[0]) return '<span class="badge b-atraso">Atrasado</span>';
+  return '<span class="badge b-ativo">Pendente</span>';
+}
+
+async function carregarDashboard() {
+  const r = await api('/cobrancas/dashboard/resumo');
+  const d = await r.json();
+  document.getElementById('m-aberto').textContent = fmt(d.em_aberto.total);
+  document.getElementById('m-aberto-qtd').textContent = d.em_aberto.qtd + ' parcelas';
+  document.getElementById('m-atraso').textContent = fmt(d.atrasadas.total);
+  document.getElementById('m-atraso-qtd').textContent = d.atrasadas.qtd + ' parcelas';
+  document.getElementById('m-recebido').textContent = fmt(d.recebido_mes.total);
+  document.getElementById('m-prometeu').textContent = d.prometeu.qtd;
+
+  const cobRes = await api('/cobrancas');
+  const cobs = await cobRes.json();
+  const parcelas = [];
+  for (const c of cobs.slice(0,10)) {
+    const pr = await api(`/cobrancas/${c.id}/parcelas`);
+    const ps = await pr.json();
+    ps.forEach(p => parcelas.push({...p, cliente_nome: c.cliente_nome, descricao: c.descricao, total_parcelas: c.total_parcelas}));
+  }
+  todasParcelas = parcelas;
+  renderParcelas(parcelas);
+}
+
+function renderParcelas(lista) {
+  const tb = document.getElementById('tb-parcelas');
+  if (!lista.length) { tb.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:2rem;color:var(--muted)">Nenhuma parcela encontrada</td></tr>'; return; }
+  tb.innerHTML = lista.slice(0,30).map(p => `
+    <tr>
+      <td style="font-weight:500">${p.cliente_nome || '—'}</td>
+      <td style="color:var(--muted)">${p.descricao || '—'}</td>
+      <td>${p.numero}/${p.total_parcelas}</td>
+      <td>${fmt(p.valor)}</td>
+      <td>${fmtData(p.vencimento)}</td>
+      <td>${statusBadge(p)}</td>
+      <td style="display:flex;gap:6px">
+        ${p.pix_code ? `<button class="btn-sm" onclick="verPix('${p.pix_code}')">PIX</button>` : ''}
+        ${p.status !== 'pago' ? `<button class="btn-sm" onclick="marcarPago('${p.id}')">Pago</button>` : ''}
+        ${p.status === 'pendente' ? `<button class="btn-sm" onclick="marcarPrometeu('${p.id}')">Prometeu</button>` : ''}
+      </td>
+    </tr>`).join('');
+}
+
+function filtrarParcelas(tipo, btn) {
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  const hoje = new Date().toISOString().split('T')[0];
+  const filtrado = tipo === 'todas' ? todasParcelas :
+    tipo === 'pago' ? todasParcelas.filter(p => p.status === 'pago') :
+    tipo === 'atraso' ? todasParcelas.filter(p => p.status !== 'pago' && p.vencimento < hoje) :
+    todasParcelas.filter(p => p.status === 'pendente');
+  renderParcelas(filtrado);
+}
+
+async function marcarPago(id) {
+  await api(`/cobrancas/parcela/${id}/pago`, {method:'POST'});
+  carregarDashboard();
+}
+async function marcarPrometeu(id) {
+  await api(`/cobrancas/parcela/${id}/prometeu`, {method:'POST'});
+  carregarDashboard();
+}
+
+function verPix(code) {
+  document.getElementById('pix-code-text').textContent = code;
+  document.getElementById('pix-qr').innerHTML = `<p style="color:var(--muted);font-size:13px">Configure o OpenPix para ver o QR Code aqui</p>`;
+  document.getElementById('modal-pix').classList.add('open');
+}
+function copiarPix() {
+  navigator.clipboard.writeText(document.getElementById('pix-code-text').textContent);
+  alert('Código PIX copiado!');
+}
+
+async function carregarClientes() {
+  const r = await api('/clientes');
+  todosClientes = await r.json();
+  const tb = document.getElementById('tb-clientes');
+  if (!todosClientes.length) { tb.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:2rem;color:var(--muted)">Nenhum cliente cadastrado</td></tr>'; return; }
+  tb.innerHTML = todosClientes.map(c => `
+    <tr>
+      <td style="font-weight:500">${c.nome}</td>
+      <td style="color:var(--muted)">${c.cpf || '—'}</td>
+      <td>${c.telefone || '—'}</td>
+      <td><span class="badge b-ativo">${c.tipo}</span></td>
+      <td>${c.total_cobrancas || 0}</td>
+      <td>${c.parcelas_atrasadas > 0 ? `<span style="color:var(--danger)">${fmt(c.valor_em_atraso)}</span>` : '<span style="color:var(--muted)">—</span>'}</td>
+      <td><button class="btn-sm" onclick="abrirModalCobrancaCliente('${c.id}')">+ Cobrança</button></td>
+    </tr>`).join('');
+}
+
+async function carregarCobrancas() {
+  const r = await api('/cobrancas');
+  const cobs = await r.json();
+  const tb = document.getElementById('tb-cobrancas');
+  if (!cobs.length) { tb.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:2rem;color:var(--muted)">Nenhuma cobrança</td></tr>'; return; }
+  tb.innerHTML = cobs.map(c => `
+    <tr>
+      <td style="font-weight:500">${c.cliente_nome}</td>
+      <td style="color:var(--muted)">${c.descricao || '—'}</td>
+      <td>${fmt(c.valor_total)}</td>
+      <td>${c.total_parcelas}x</td>
+      <td style="color:var(--verde)">${c.parcelas_pagas || 0}</td>
+      <td style="color:${c.parcelas_atrasadas > 0 ? 'var(--danger)' : 'var(--muted)'}">${c.parcelas_atrasadas || 0}</td>
+      <td>${c.parcelas_pagas >= c.total_parcelas ? '<span class="badge b-pago">Quitado</span>' : c.parcelas_atrasadas > 0 ? '<span class="badge b-atraso">Em atraso</span>' : '<span class="badge b-ativo">Ativa</span>'}</td>
+    </tr>`).join('');
+}
+
+async function carregarRegua() {
+  const r = await api('/regua');
+  const regua = await r.json();
+  const cont = document.getElementById('regua-content');
+  cont.innerHTML = `
+    <div class="table-card" style="padding:1.25rem;margin-bottom:1rem">
+      <div style="font-size:13px;color:var(--muted);margin-bottom:.75rem">
+        Clique em qualquer mensagem para editar o texto. Use as variáveis abaixo para personalizar:
+        <br><span style="color:var(--verde);font-size:12px">{nome} {empresa} {valor} {vencimento} {parcela} {link}</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:.5rem" id="regua-lista">
+        ${regua.map(item => `
+          <div style="background:var(--bg2);border-radius:10px;padding:.875rem 1rem;border:1px solid transparent" id="regra-${item.id}">
+            <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:.75rem">
+              <span style="min-width:72px;font-size:12px;font-weight:600;color:var(--verde)">
+                ${item.dia_atraso === 0 ? 'Vence hoje' : `Dia ${item.dia_atraso}`}
+              </span>
+              <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px;color:var(--muted);margin-left:auto">
+                <input type="checkbox" id="ativo-${item.id}" ${item.ativo ? 'checked' : ''} onchange="salvarMensagem(${item.id})" style="accent-color:var(--verde)">
+                Ativo
+              </label>
+            </div>
+
+            <div style="font-size:11px;color:var(--muted);margin-bottom:4px;font-weight:500">📱 Mensagem WhatsApp</div>
+            <textarea
+              id="msg-${item.id}"
+              rows="2"
+              style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.5rem .75rem;font-size:12px;color:var(--text);resize:vertical;line-height:1.5;margin-bottom:.75rem"
+              onblur="salvarMensagem(${item.id})"
+            >${item.mensagem_wpp || ''}</textarea>
+
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+              <div style="font-size:11px;color:#a78bfa;font-weight:500">📞 Ligação IA</div>
+              <label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:11px;color:var(--muted)">
+                <input type="checkbox" id="voz-${item.id}" ${item.acao_voz ? 'checked' : ''} onchange="toggleVoz(${item.id}, this.checked)" style="accent-color:#7c3aed">
+                Ativar ligação nesse dia
+              </label>
+            </div>
+            <textarea
+              id="roteiro-${item.id}"
+              rows="2"
+              placeholder="Roteiro para a IA falar na ligação... use {nome}, {empresa}, {valor}"
+              style="width:100%;background:var(--bg);border:1px solid rgba(120,80,255,.3);border-radius:8px;padding:.5rem .75rem;font-size:12px;color:var(--text);resize:vertical;line-height:1.5;${item.acao_voz ? '' : 'opacity:.4;pointer-events:none'}"
+              onblur="salvarMensagem(${item.id})"
+            >${item.roteiro_voz || ''}</textarea>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+    <p style="font-size:12px;color:var(--muted);margin-top:.5rem">As mensagens são enviadas automaticamente todo dia às 8h para parcelas em atraso.</p>
+  `;
+}
+
+async function salvarMensagem(id) {
+  const msg       = document.getElementById('msg-' + id)?.value || '';
+  const roteiro   = document.getElementById('roteiro-' + id)?.value || '';
+  const ativo     = document.getElementById('ativo-' + id)?.checked ? 1 : 0;
+  const acao_voz  = document.getElementById('voz-' + id)?.checked ? 1 : 0;
+  const regra     = document.getElementById('regra-' + id);
+  await api('/regua/' + id, { method: 'PUT', body: { ativo, acao_wpp: 1, acao_voz, mensagem_wpp: msg, roteiro_voz: roteiro } });
+  regra.style.borderColor = 'var(--verde)';
+  setTimeout(() => regra.style.borderColor = 'transparent', 1200);
+}
+
+function toggleVoz(id, ativo) {
+  const roteiro = document.getElementById('roteiro-' + id);
+  if (roteiro) {
+    roteiro.style.opacity = ativo ? '1' : '.4';
+    roteiro.style.pointerEvents = ativo ? 'auto' : 'none';
+  }
+  salvarMensagem(id);
+}
+
+async function carregarConfig() {
+  // Carrega perfil
+  const rp = await api('/auth/me');
+  const perfil = await rp.json();
+  if (document.getElementById('cfg-nome')) document.getElementById('cfg-nome').value = perfil.nome || '';
+  if (document.getElementById('cfg-empresa')) document.getElementById('cfg-empresa').value = perfil.nome_empresa || '';
+  // Carrega openpix + vapi
+  const r = await api('/regua/config');
+  const d = await r.json();
+  if (document.getElementById('cfg-openpix')) document.getElementById('cfg-openpix').value = d.openpix_app_id || '';
+  // Verifica status do WhatsApp
+  verificarStatusWpp();
+}
+
+
+async function salvarPerfil() {
+  const nome = document.getElementById('cfg-nome')?.value?.trim() || '';
+  const nome_empresa = document.getElementById('cfg-empresa')?.value?.trim() || '';
+  const msg = document.getElementById('perfil-status-msg');
+  if (!nome) {
+    msg.style.display = 'block';
+    msg.style.background = 'rgba(255,80,80,.1)';
+    msg.style.color = '#ff5050';
+    msg.textContent = 'O seu nome é obrigatório.';
+    return;
+  }
+  try {
+    await api('/auth/perfil', { method: 'PUT', body: { nome, nome_empresa } });
+    msg.style.display = 'block';
+    msg.style.background = 'rgba(0,200,150,.12)';
+    msg.style.color = 'var(--verde)';
+    msg.textContent = '✓ Dados salvos! As mensagens já usarão o nome atualizado.';
+    setTimeout(() => msg.style.display = 'none', 4000);
+  } catch(e) {
+    msg.style.display = 'block';
+    msg.style.background = 'rgba(255,80,80,.1)';
+    msg.style.color = '#ff5050';
+    msg.textContent = 'Erro ao salvar. Tente novamente.';
+  }
+}
+
+async function verificarStatusWpp() {
+  try {
+    const r = await api('/whatsapp/status');
+    const d = await r.json();
+    const dot = document.getElementById('wpp-status-dot');
+    const txt = document.getElementById('wpp-status-txt');
+    const sub = document.getElementById('wpp-status-sub');
+    const btnConectar = document.getElementById('wpp-btn-conectar');
+    const btnDesconectar = document.getElementById('wpp-btn-desconectar');
+    const qrArea = document.getElementById('wpp-qr-area');
+
+    if (d.status === 'open') {
+      dot.style.background = 'var(--verde)';
+      txt.textContent = 'WhatsApp Conectado ✓';
+      sub.textContent = d.instancia || '';
+      btnConectar.style.display = 'none';
+      btnDesconectar.style.display = 'block';
+      qrArea.style.display = 'none';
+    } else if (d.status === 'nao_configurado') {
+      dot.style.background = 'var(--muted)';
+      txt.textContent = 'Não configurado';
+      sub.textContent = 'Clique em conectar para começar';
+      btnConectar.style.display = 'block';
+      btnDesconectar.style.display = 'none';
+    } else {
+      dot.style.background = 'var(--danger)';
+      txt.textContent = 'Desconectado';
+      sub.textContent = 'Escaneie o QR Code para conectar';
+      btnConectar.style.display = 'block';
+      btnDesconectar.style.display = 'none';
+    }
+  } catch(e) {
+    document.getElementById('wpp-status-txt').textContent = 'Erro ao verificar status';
+  }
+}
+
+async function conectarWhatsapp() {
+  const btn = document.getElementById('btn-wpp-conectar');
+  btn.textContent = 'Gerando QR Code...';
+  btn.disabled = true;
+  try {
+    const r = await api('/whatsapp/conectar', { method: 'POST' });
+    const d = await r.json();
+    if (d.erro) { alert(d.erro); return; }
+    if (d.conectado) { verificarStatusWpp(); return; }
+    if (d.qr) {
+      // Mostra QR Code
+      const qrArea = document.getElementById('wpp-qr-area');
+      const qrImg = document.getElementById('wpp-qr-img');
+      qrArea.style.display = 'block';
+      document.getElementById('wpp-btn-conectar').style.display = 'none';
+      // QR pode ser base64 ou string para gerar com qrcode lib
+      // Tenta mostrar como imagem base64
+      if (d.qr.startsWith('data:image')) {
+        qrImg.innerHTML = `<img src="${d.qr}" style="width:220px;height:220px">`;
+      } else {
+        // Gera QR Code usando API externa
+        qrImg.innerHTML = `<img src="https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(d.qr)}" style="width:220px;height:220px">`;
+      }
+      // Verifica status a cada 5 segundos
+      const intervalo = setInterval(async () => {
+        const s = await api('/whatsapp/status');
+        const sd = await s.json();
+        if (sd.status === 'open') {
+          clearInterval(intervalo);
+          verificarStatusWpp();
+        }
+      }, 5000);
+      // Para de verificar após 2 minutos
+      setTimeout(() => clearInterval(intervalo), 120000);
+    }
+  } catch(e) {
+    alert('Erro ao conectar: ' + e.message);
+  } finally {
+    btn.textContent = '📱 Conectar WhatsApp';
+    btn.disabled = false;
+  }
+}
+
+async function desconectarWhatsapp() {
+  if (!confirm('Deseja desconectar o WhatsApp?')) return;
+  await api('/whatsapp/desconectar', { method: 'POST' });
+  verificarStatusWpp();
+}
+
+async function salvarConfig() { salvarConfigPix(); }
+
+async function salvarConfigPix() {
+  const openpix_app_id = document.getElementById('cfg-openpix')?.value?.trim() || '';
+  const msg = document.getElementById('pix-status-msg');
+  if (!openpix_app_id) {
+    msg.style.display = 'block';
+    msg.style.background = 'rgba(255,80,80,.1)';
+    msg.style.color = '#ff5050';
+    msg.textContent = 'Cole o App ID da OpenPix antes de salvar.';
+    return;
+  }
+  try {
+    await api('/regua/config', { method: 'PUT', body: { openpix_app_id } });
+    msg.style.display = 'block';
+    msg.style.background = 'rgba(0,200,150,.12)';
+    msg.style.color = 'var(--verde)';
+    msg.textContent = '✓ App ID salvo com sucesso! PIX já está ativo.';
+  } catch(e) {
+    msg.style.display = 'block';
+    msg.style.background = 'rgba(255,80,80,.1)';
+    msg.style.color = '#ff5050';
+    msg.textContent = 'Erro ao salvar. Tente novamente.';
+  }
+}
+
+function abrirModalCliente() { document.getElementById('modal-cliente').classList.add('open'); }
+function fecharModal(id) { document.getElementById(id).classList.remove('open'); }
+
+async function salvarCliente() {
+  const nome = document.getElementById('cli-nome').value;
+  const cpf = document.getElementById('cli-cpf').value;
+  const telefone = document.getElementById('cli-tel').value;
+  const email = document.getElementById('cli-email').value;
+  const tipo = document.getElementById('cli-tipo').value;
+  if (!nome) return alert('Nome é obrigatório');
+  await api('/clientes', {method:'POST', body:{nome, cpf, telefone, email, tipo}});
+  fecharModal('modal-cliente');
+  carregarClientes();
+}
+
+async function abrirModalCobranca() {
+  const r = await api('/clientes');
+  todosClientes = await r.json();
+  const sel = document.getElementById('cob-cliente');
+  sel.innerHTML = '<option value="">Selecione...</option>' + todosClientes.map(c => `<option value="${c.id}">${c.nome}</option>`).join('');
+  const hoje = new Date(); hoje.setDate(hoje.getDate()+30);
+  document.getElementById('cob-venc').value = hoje.toISOString().split('T')[0];
+  document.getElementById('modal-cobranca').classList.add('open');
+}
+
+function abrirModalCobrancaCliente(clienteId) {
+  abrirModalCobranca().then(() => { document.getElementById('cob-cliente').value = clienteId; });
+}
+
+function calcParcelas() {
+  const valor = parseFloat(document.getElementById('cob-valor').value) || 0;
+  const parcelas = parseInt(document.getElementById('cob-parcelas').value) || 1;
+  const taxa = parseFloat(document.getElementById('cob-taxa').value) || 0;
+  if (!valor) { document.getElementById('resumo-cob').style.display = 'none'; return; }
+  const total = valor * (1 + taxa/100);
+  const porParcela = total / parcelas;
+  document.getElementById('resumo-cob').style.display = 'block';
+  document.getElementById('resumo-cob').innerHTML = `
+    <span style="color:var(--text)">${parcelas}x de ${fmt(porParcela)}</span> &nbsp;·&nbsp; Total: <span style="color:var(--verde)">${fmt(total)}</span>${taxa > 0 ? ` &nbsp;·&nbsp; Juros: ${taxa}%` : ''}`;
+}
+
+async function salvarCobranca() {
+  const cliente_id = document.getElementById('cob-cliente').value;
+  const descricao = document.getElementById('cob-desc').value;
+  const valor_total = parseFloat(document.getElementById('cob-valor').value);
+  const total_parcelas = parseInt(document.getElementById('cob-parcelas').value);
+  const taxa_juros = parseFloat(document.getElementById('cob-taxa').value) || 0;
+  const data_primeira_parcela = document.getElementById('cob-venc').value;
+  if (!cliente_id || !valor_total) return alert('Selecione o cliente e informe o valor');
+  const r = await api('/cobrancas', {method:'POST', body:{cliente_id, descricao, valor_total, total_parcelas, taxa_juros, data_primeira_parcela}});
+  const d = await r.json();
+  fecharModal('modal-cobranca');
+  if (d.parcelas && d.parcelas[0]?.pixCode) verPix(d.parcelas[0].pixCode);
+  carregarDashboard();
+}
+
+// INIT
+async function init() {
+  if (!TOKEN) { window.location.href = 'index.html'; return; }
+  const l = JSON.parse(localStorage.getItem('lojista') || '{}');
+  document.getElementById('user-nome').textContent = l.nome || 'Lojista';
+  document.getElementById('user-email').textContent = l.email || '';
+  carregarDashboard();
+}
+
+init();
+</script>
+</body>
+</html>
