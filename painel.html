@@ -209,20 +209,6 @@
         </div>
       </div>
 
-      <!-- Horários de envio -->
-      <div class="table-card" style="padding:1.5rem;margin-bottom:1rem">
-        <div style="font-size:15px;font-weight:500;margin-bottom:.25rem">Horários de envio</div>
-        <div style="font-size:13px;color:var(--muted);margin-bottom:1.25rem">Defina em quais horários as mensagens automáticas serão disparadas. Pode adicionar quantos quiser.</div>
-        <div id="horarios-lista" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:1rem"></div>
-        <div style="display:flex;gap:8px;align-items:center">
-          <select id="horario-novo" style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:14px;color:var(--text);font-family:'DM Sans',sans-serif;outline:none">
-            ${Array.from({length:24},(_,i)=>`<option value="${i}">${String(i).padStart(2,'0')}:00</option>`).join('')}
-          </select>
-          <button class="btn-primary" onclick="adicionarHorario()" style="width:auto;padding:9px 18px">+ Adicionar</button>
-        </div>
-        <div id="horarios-status" style="display:none;margin-top:.75rem;padding:.6rem 1rem;border-radius:8px;font-size:13px;text-align:center"></div>
-      </div>
-
       <!-- OpenPix -->
       <div class="table-card" style="padding:1.5rem">
         <div style="font-size:15px;font-weight:500;margin-bottom:.25rem">PIX (OpenPix)</div>
@@ -484,56 +470,109 @@ async function carregarCobrancas() {
 }
 
 async function carregarRegua() {
-  const r = await api('/regua');
-  const regua = await r.json();
+  const [rRegua, rCfg] = await Promise.all([api('/regua'), api('/regua/config')]);
+  const regua = await rRegua.json();
+  const cfg = await rCfg.json();
+  try { horariosEnvio = JSON.parse(cfg.horarios_envio || '[8]').filter(h => !isNaN(h)); } catch { horariosEnvio = [8]; }
+
   const cont = document.getElementById('regua-content');
   cont.innerHTML = `
+    <!-- Horários -->
     <div class="table-card" style="padding:1.25rem;margin-bottom:1rem">
-      <div style="font-size:13px;color:var(--muted);margin-bottom:.75rem">
-        Clique em qualquer mensagem para editar o texto. Use as variáveis abaixo para personalizar:
-        <br><span style="color:var(--verde);font-size:12px">{nome} {empresa} {valor} {vencimento} {parcela} {link}</span>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+        <div>
+          <div style="font-size:15px;font-weight:500">⏰ Horários de envio</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:2px">Defina em quais horários as mensagens serão disparadas automaticamente</div>
+        </div>
       </div>
-      <div style="display:flex;flex-direction:column;gap:.5rem" id="regua-lista">
+      <div id="horarios-lista" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:1rem;min-height:36px"></div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <select id="horario-novo" style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:14px;color:var(--text);font-family:'DM Sans',sans-serif;outline:none;cursor:pointer"></select>
+        <button class="btn-primary" onclick="adicionarHorario()" style="width:auto;padding:9px 20px;font-size:13px">+ Adicionar horário</button>
+      </div>
+      <div id="horarios-status" style="display:none;margin-top:.75rem;padding:.6rem 1rem;border-radius:8px;font-size:13px;text-align:center"></div>
+    </div>
+
+    <!-- Mensagens -->
+    <div class="table-card" style="padding:1.25rem;margin-bottom:1rem">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+        <div>
+          <div style="font-size:15px;font-weight:500">💬 Sequência de mensagens</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:2px">Edite o texto de cada mensagem. Variáveis disponíveis: <span style="color:var(--verde)">{nome} {empresa} {valor} {vencimento} {parcela} {link}</span></div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px" id="regua-lista">
         ${regua.map(item => `
-          <div style="background:var(--bg2);border-radius:10px;padding:.875rem 1rem;border:1px solid transparent" id="regra-${item.id}">
-            <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:.75rem">
-              <span style="min-width:72px;font-size:12px;font-weight:600;color:var(--verde)">
-                ${item.dia_atraso === 0 ? 'Vence hoje' : `Dia ${item.dia_atraso}`}
-              </span>
-              <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px;color:var(--muted);margin-left:auto">
-                <input type="checkbox" id="ativo-${item.id}" ${item.ativo ? 'checked' : ''} onchange="salvarMensagem(${item.id})" style="accent-color:var(--verde)">
-                Ativo
-              </label>
+          <div style="background:var(--bg2);border-radius:12px;border:1px solid ${item.ativo ? 'var(--border)' : 'rgba(255,90,90,.15)'}; transition:border .2s" id="regra-${item.id}">
+            <div style="display:flex;align-items:center;gap:10px;padding:.875rem 1rem;cursor:pointer" onclick="toggleExpand(${item.id})">
+              <div style="min-width:80px">
+                <span style="font-size:12px;font-weight:700;color:${item.ativo ? 'var(--verde)' : 'var(--muted)'}">
+                  ${item.dia_atraso === 0 ? '📅 Vence hoje' : `📅 Dia ${item.dia_atraso}`}
+                </span>
+              </div>
+              <div style="flex:1;font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+                ${(item.mensagem_wpp || '').substring(0, 60)}${(item.mensagem_wpp || '').length > 60 ? '...' : ''}
+              </div>
+              <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+                ${item.acao_voz ? '<span class="badge b-voz" style="font-size:10px">📞 Voz</span>' : ''}
+                <label onclick="event.stopPropagation()" style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px;color:var(--muted)">
+                  <input type="checkbox" id="ativo-${item.id}" ${item.ativo ? 'checked' : ''} onchange="salvarMensagem(${item.id})" style="accent-color:var(--verde)">
+                  Ativo
+                </label>
+                <span style="color:var(--muted);font-size:16px" id="expand-icon-${item.id}">›</span>
+              </div>
             </div>
+            <div id="expand-${item.id}" style="display:none;padding:0 1rem 1rem">
+              <div style="border-top:1px solid var(--border);padding-top:.875rem">
+                <div style="font-size:11px;color:var(--muted);margin-bottom:5px;font-weight:600;text-transform:uppercase;letter-spacing:.05em">📱 Mensagem WhatsApp</div>
+                <textarea
+                  id="msg-${item.id}"
+                  rows="3"
+                  style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.625rem .875rem;font-size:13px;color:var(--text);resize:vertical;line-height:1.6;margin-bottom:1rem;font-family:'DM Sans',sans-serif;outline:none"
+                  onblur="salvarMensagem(${item.id})"
+                  onfocus="this.style.borderColor='var(--verde)'" onblur2="this.style.borderColor='var(--border)'"
+                >${item.mensagem_wpp || ''}</textarea>
 
-            <div style="font-size:11px;color:var(--muted);margin-bottom:4px;font-weight:500">📱 Mensagem WhatsApp</div>
-            <textarea
-              id="msg-${item.id}"
-              rows="2"
-              style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.5rem .75rem;font-size:12px;color:var(--text);resize:vertical;line-height:1.5;margin-bottom:.75rem"
-              onblur="salvarMensagem(${item.id})"
-            >${item.mensagem_wpp || ''}</textarea>
-
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-              <div style="font-size:11px;color:#a78bfa;font-weight:500">📞 Ligação IA</div>
-              <label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:11px;color:var(--muted)">
-                <input type="checkbox" id="voz-${item.id}" ${item.acao_voz ? 'checked' : ''} onchange="toggleVoz(${item.id}, this.checked)" style="accent-color:#7c3aed">
-                Ativar ligação nesse dia
-              </label>
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+                  <div style="font-size:11px;color:#a78bfa;font-weight:600;text-transform:uppercase;letter-spacing:.05em">📞 Ligação IA</div>
+                  <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px;color:var(--muted)">
+                    <input type="checkbox" id="voz-${item.id}" ${item.acao_voz ? 'checked' : ''} onchange="toggleVoz(${item.id}, this.checked)" style="accent-color:#7c3aed">
+                    Ativar ligação neste dia
+                  </label>
+                </div>
+                <textarea
+                  id="roteiro-${item.id}"
+                  rows="3"
+                  placeholder="Roteiro para a IA falar na ligação... use {nome}, {empresa}, {valor}"
+                  style="width:100%;background:var(--bg);border:1px solid rgba(120,80,255,.25);border-radius:8px;padding:.625rem .875rem;font-size:13px;color:var(--text);resize:vertical;line-height:1.6;font-family:'DM Sans',sans-serif;outline:none;${item.acao_voz ? '' : 'opacity:.35;pointer-events:none'}"
+                  onblur="salvarMensagem(${item.id})"
+                >${item.roteiro_voz || ''}</textarea>
+              </div>
             </div>
-            <textarea
-              id="roteiro-${item.id}"
-              rows="2"
-              placeholder="Roteiro para a IA falar na ligação... use {nome}, {empresa}, {valor}"
-              style="width:100%;background:var(--bg);border:1px solid rgba(120,80,255,.3);border-radius:8px;padding:.5rem .75rem;font-size:12px;color:var(--text);resize:vertical;line-height:1.5;${item.acao_voz ? '' : 'opacity:.4;pointer-events:none'}"
-              onblur="salvarMensagem(${item.id})"
-            >${item.roteiro_voz || ''}</textarea>
           </div>
         `).join('')}
       </div>
     </div>
-    <p style="font-size:12px;color:var(--muted);margin-top:.5rem">As mensagens são enviadas automaticamente todo dia às 8h para parcelas em atraso.</p>
   `;
+
+  // Popula select de horários
+  const sel = document.getElementById('horario-novo');
+  for (let i = 0; i < 24; i++) {
+    const opt = document.createElement('option');
+    opt.value = i;
+    opt.textContent = String(i).padStart(2,'0') + ':00';
+    sel.appendChild(opt);
+  }
+  renderHorarios();
+}
+
+function toggleExpand(id) {
+  const el = document.getElementById('expand-' + id);
+  const icon = document.getElementById('expand-icon-' + id);
+  const aberto = el.style.display === 'block';
+  el.style.display = aberto ? 'none' : 'block';
+  icon.style.transform = aberto ? 'rotate(0deg)' : 'rotate(90deg)';
+  icon.style.transition = 'transform .2s';
 }
 
 async function salvarMensagem(id) {
@@ -559,19 +598,13 @@ function toggleVoz(id, ativo) {
 let horariosEnvio = [8];
 
 async function carregarConfig() {
-  // Carrega perfil
   const rp = await api('/auth/me');
   const perfil = await rp.json();
   if (document.getElementById('cfg-nome')) document.getElementById('cfg-nome').value = perfil.nome || '';
   if (document.getElementById('cfg-empresa')) document.getElementById('cfg-empresa').value = perfil.nome_empresa || '';
-  // Carrega config
   const r = await api('/regua/config');
   const d = await r.json();
   if (document.getElementById('cfg-openpix')) document.getElementById('cfg-openpix').value = d.openpix_app_id || '';
-  // Carrega horários
-  try { horariosEnvio = JSON.parse(d.horarios_envio || '[8]'); } catch { horariosEnvio = [8]; }
-  renderHorarios();
-  // Verifica status do WhatsApp
   verificarStatusWpp();
 }
 
