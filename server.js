@@ -117,6 +117,7 @@ async function iniciarBanco() {
     acao_wpp    INTEGER DEFAULT 1,
     acao_voz    INTEGER DEFAULT 0,
     mensagem_wpp TEXT,
+    roteiro_voz TEXT,
     ativo       INTEGER DEFAULT 1,
     UNIQUE(lojista_id, dia_atraso)
   )`);
