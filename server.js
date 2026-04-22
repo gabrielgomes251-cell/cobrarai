@@ -61,6 +61,7 @@ async function iniciarBanco() {
   await dbRun(`ALTER TABLE regua ADD COLUMN roteiro_voz TEXT`).catch(() => {});
   await dbRun(`ALTER TABLE config ADD COLUMN vapi_phone_id TEXT`).catch(() => {});
   await dbRun(`ALTER TABLE config ADD COLUMN horarios_envio TEXT`).catch(() => {});
+  await dbRun(`ALTER TABLE config ADD COLUMN horarios_ligacao TEXT`).catch(() => {});
 
   await dbRun(`CREATE TABLE IF NOT EXISTS lojistas (
     id          TEXT PRIMARY KEY,
@@ -513,15 +514,17 @@ app.get('/api/regua/config', authMiddleware, async (req, res) => {
 });
 
 app.put('/api/regua/config', authMiddleware, async (req, res) => {
-  const { openpix_app_id, horarios_envio } = req.body;
+  const { openpix_app_id, horarios_envio, horarios_ligacao } = req.body;
   const horariosJson = horarios_envio ? JSON.stringify(horarios_envio) : null;
+  const horariosLigJson = horarios_ligacao ? JSON.stringify(horarios_ligacao) : null;
   await dbRun(`
-    INSERT INTO config (lojista_id, openpix_app_id, horarios_envio)
-    VALUES (?,?,?)
+    INSERT INTO config (lojista_id, openpix_app_id, horarios_envio, horarios_ligacao)
+    VALUES (?,?,?,?)
     ON CONFLICT(lojista_id) DO UPDATE SET
       openpix_app_id=excluded.openpix_app_id,
-      horarios_envio=COALESCE(excluded.horarios_envio, horarios_envio)
-  `, [req.lojista.id, openpix_app_id || null, horariosJson]);
+      horarios_envio=COALESCE(excluded.horarios_envio, horarios_envio),
+      horarios_ligacao=COALESCE(excluded.horarios_ligacao, horarios_ligacao)
+  `, [req.lojista.id, openpix_app_id || null, horariosJson, horariosLigJson]);
   res.json({ ok: true });
 });
 
@@ -556,8 +559,8 @@ async function enviarWhatsApp(lojista_id, telefone, mensagem) {
   const cfg = await dbGet('SELECT * FROM config WHERE lojista_id=?', [lojista_id]);
   const url  = cfg?.evolution_url  || EVOLUTION_URL;
   const key  = cfg?.evolution_key  || EVOLUTION_KEY;
-  const inst = cfg?.evolution_inst || EVOLUTION_INSTANCE;
-  if (!url || !key || !inst) return false;
+  const inst = cfg?.evolution_inst || `cobrarai_${lojista_id.replace(/-/g,'').substring(0,12)}`;
+  if (!url || !key || !inst) { console.error('[WPP] Config incompleta', { url: !!url, key: !!key, inst: !!inst }); return false; }
   const tel = telefone.replace(/\D/g, '');
   const numero = tel.startsWith('55') ? tel : '55' + tel;
   try {
@@ -613,8 +616,8 @@ async function enviarLigacaoVAPI(lojista_id, telefone, roteiro) {
 }
 
 // ─── CRON: RÉGUA AUTOMÁTICA ───────────────────────────────────────────────────
-async function rodarRegua(lojista_id_filtro = null) {
-  console.log('[RÉGUA] Iniciando:', new Date().toISOString(), lojista_id_filtro ? `lojista=${lojista_id_filtro}` : 'todos');
+async function rodarRegua(lojista_id_filtro = null, tipo = null) {
+  console.log('[RÉGUA] Iniciando:', new Date().toISOString(), lojista_id_filtro ? `lojista=${lojista_id_filtro}` : 'todos', tipo ? `tipo=${tipo}` : '');
   const parcelasAlvo = await dbAll(`
     SELECT p.id, p.numero, p.valor, p.vencimento, p.status, p.pix_code,
       c.id as cob_id, c.lojista_id, c.descricao, c.total_parcelas,
@@ -644,7 +647,7 @@ async function rodarRegua(lojista_id_filtro = null) {
       };
 
       // WhatsApp
-      if (regra.acao_wpp && p.cliente_tel && regra.mensagem_wpp) {
+      if (regra.acao_wpp && p.cliente_tel && regra.mensagem_wpp && (!tipo || tipo === 'wpp')) {
         const jaEnviouWpp = await dbGet(`SELECT id FROM disparos WHERE parcela_id=? AND dia_atraso=? AND tipo='wpp' AND strftime('%Y-%m-%d %H', enviado_em)=strftime('%Y-%m-%d %H', 'now')`, [p.id, atraso]);
         if (!jaEnviouWpp) {
           const msg = montarMensagem(regra.mensagem_wpp, dados);
@@ -656,7 +659,7 @@ async function rodarRegua(lojista_id_filtro = null) {
       }
 
       // Ligação IA (VAPI)
-      if (regra.acao_voz && p.cliente_tel && regra.roteiro_voz) {
+      if (regra.acao_voz && p.cliente_tel && regra.roteiro_voz && (!tipo || tipo === 'voz')) {
         const jaLigou = await dbGet(`SELECT id FROM disparos WHERE parcela_id=? AND dia_atraso=? AND tipo='voz' AND strftime('%Y-%m-%d %H', enviado_em)=strftime('%Y-%m-%d %H', 'now')`, [p.id, atraso]);
         if (!jaLigou) {
           const roteiro = montarMensagem(regra.roteiro_voz, dados);
@@ -671,7 +674,16 @@ async function rodarRegua(lojista_id_filtro = null) {
   console.log(`[RÉGUA] Enviados: ${enviados}, Erros: ${erros}`);
 }
 
-// A cada minuto verifica quais lojistas têm envio programado para esse momento (BRT = UTC-3)
+function parseHorarios(json, fallback = []) {
+  try {
+    return JSON.parse(json || 'null')
+      ?.filter(h => h !== null && h !== undefined)
+      ?.map(h => typeof h === 'number' ? `${String(h).padStart(2,'0')}:00` : h)
+      ?.filter(h => /^\d{2}:\d{2}$/.test(h)) || fallback;
+  } catch { return fallback; }
+}
+
+// A cada minuto verifica horários de WPP e ligação separadamente (BRT = UTC-3)
 cron.schedule('* * * * *', async () => {
   const now = new Date();
   const totalMin = (now.getUTCHours() * 60 + now.getUTCMinutes() - 180 + 1440) % 1440;
@@ -679,22 +691,29 @@ cron.schedule('* * * * *', async () => {
   const brtM = String(totalMin % 60).padStart(2, '0');
   const timeStr = `${brtH}:${brtM}`;
 
-  const configs = await dbAll('SELECT lojista_id, horarios_envio FROM config');
+  const configs = await dbAll('SELECT lojista_id, horarios_envio, horarios_ligacao FROM config');
   for (const cfg of configs) {
-    let horarios = [];
-    try { horarios = JSON.parse(cfg.horarios_envio || '["08:00"]'); } catch {}
-    // compatibilidade: converte formato antigo (inteiros) para "HH:MM"
-    horarios = horarios.map(h => typeof h === 'number' ? `${String(h).padStart(2,'0')}:00` : h);
-    if (horarios.includes(timeStr)) {
-      console.log(`[CRON] ${timeStr} BRT — disparando para lojista ${cfg.lojista_id}`);
-      await rodarRegua(cfg.lojista_id);
+    const horariosWpp = parseHorarios(cfg.horarios_envio, ['08:00']);
+    const horariosVoz = parseHorarios(cfg.horarios_ligacao, []);
+    const dispWpp = horariosWpp.includes(timeStr);
+    const dispVoz = horariosVoz.includes(timeStr);
+    if (dispWpp && dispVoz) {
+      console.log(`[CRON] ${timeStr} — WPP+Voz lojista ${cfg.lojista_id}`);
+      await rodarRegua(cfg.lojista_id, null);
+    } else if (dispWpp) {
+      console.log(`[CRON] ${timeStr} — WPP lojista ${cfg.lojista_id}`);
+      await rodarRegua(cfg.lojista_id, 'wpp');
+    } else if (dispVoz) {
+      console.log(`[CRON] ${timeStr} — Voz lojista ${cfg.lojista_id}`);
+      await rodarRegua(cfg.lojista_id, 'voz');
     }
   }
 });
 
 app.post('/api/regua/disparar-agora', authMiddleware, async (req, res) => {
-  await rodarRegua();
-  res.json({ ok: true, mensagem: 'Régua executada manualmente' });
+  const { tipo } = req.body;
+  await rodarRegua(req.lojista.id, tipo || null);
+  res.json({ ok: true, mensagem: 'Régua executada' });
 });
 
 app.get('/api/disparos', authMiddleware, async (req, res) => {

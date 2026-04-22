@@ -500,37 +500,61 @@ async function carregarRegua() {
   const [rRegua, rCfg] = await Promise.all([api('/regua'), api('/regua/config')]);
   const regua = await rRegua.json();
   const cfg = await rCfg.json();
-  try {
-    horariosEnvio = JSON.parse(cfg.horarios_envio || '["08:00"]').filter(h => {
-      if (h === null || h === undefined) return false;
-      if (typeof h === 'number') return Number.isInteger(h) && h >= 0 && h < 24;
-      if (typeof h === 'string') return /^\d{2}:\d{2}$/.test(h);
-      return false;
-    }).map(h => typeof h === 'number' ? `${String(h).padStart(2,'0')}:00` : h);
-  } catch { horariosEnvio = ['08:00']; }
-  if (!horariosEnvio.length) horariosEnvio = ['08:00'];
+  horariosEnvio = parseHorariosUI(cfg.horarios_envio, ['08:00']);
+  horariosLigacao = parseHorariosUI(cfg.horarios_ligacao, []);
 
   const cont = document.getElementById('regua-content');
   cont.innerHTML = `
     <!-- Horários -->
     <div class="table-card" style="padding:1.25rem;margin-bottom:1rem">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem">
+
+        <!-- WPP -->
         <div>
-          <div style="font-size:15px;font-weight:500">⏰ Horários de envio</div>
-          <div style="font-size:12px;color:var(--muted);margin-top:2px">Defina em quais horários as mensagens serão disparadas automaticamente</div>
+          <div style="font-size:14px;font-weight:600;margin-bottom:4px">📱 Horários WhatsApp</div>
+          <div style="font-size:12px;color:var(--muted);margin-bottom:.875rem">Quando enviar as mensagens automáticas</div>
+          <div id="horarios-lista" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:.875rem;min-height:32px"></div>
+          <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+            <select id="horario-hora" style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:13px;color:var(--text);font-family:'DM Sans',sans-serif;outline:none;cursor:pointer"></select>
+            <span style="color:var(--muted);font-size:16px">:</span>
+            <select id="horario-min" style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:13px;color:var(--text);font-family:'DM Sans',sans-serif;outline:none;cursor:pointer">
+              <option value="00">00</option><option value="05">05</option><option value="10">10</option>
+              <option value="15">15</option><option value="20">20</option><option value="25">25</option>
+              <option value="30">30</option><option value="35">35</option><option value="40">40</option>
+              <option value="45">45</option><option value="50">50</option><option value="55">55</option>
+            </select>
+            <button class="btn-primary" onclick="adicionarHorario()" style="width:auto;padding:8px 14px;font-size:13px">+ Adicionar</button>
+          </div>
         </div>
+
+        <!-- Voz -->
+        <div>
+          <div style="font-size:14px;font-weight:600;margin-bottom:4px">📞 Horários Ligação IA</div>
+          <div style="font-size:12px;color:var(--muted);margin-bottom:.875rem">Quando fazer as ligações automáticas</div>
+          <div id="horarios-voz-lista" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:.875rem;min-height:32px"></div>
+          <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+            <select id="horario-voz-hora" style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:13px;color:var(--text);font-family:'DM Sans',sans-serif;outline:none;cursor:pointer"></select>
+            <span style="color:var(--muted);font-size:16px">:</span>
+            <select id="horario-voz-min" style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:13px;color:var(--text);font-family:'DM Sans',sans-serif;outline:none;cursor:pointer">
+              <option value="00">00</option><option value="05">05</option><option value="10">10</option>
+              <option value="15">15</option><option value="20">20</option><option value="25">25</option>
+              <option value="30">30</option><option value="35">35</option><option value="40">40</option>
+              <option value="45">45</option><option value="50">50</option><option value="55">55</option>
+            </select>
+            <button class="btn-primary" onclick="adicionarHorarioVoz()" style="width:auto;padding:8px 14px;font-size:13px;background:rgba(124,58,237,.85)">+ Adicionar</button>
+          </div>
+        </div>
+
       </div>
-      <div id="horarios-lista" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:1rem;min-height:36px"></div>
-      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-        <select id="horario-hora" style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:14px;color:var(--text);font-family:'DM Sans',sans-serif;outline:none;cursor:pointer"></select>
-        <span style="color:var(--muted);font-size:18px;font-weight:300">:</span>
-        <select id="horario-min" style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:14px;color:var(--text);font-family:'DM Sans',sans-serif;outline:none;cursor:pointer">
-          <option value="00">00</option><option value="05">05</option><option value="10">10</option>
-          <option value="15">15</option><option value="20">20</option><option value="25">25</option>
-          <option value="30">30</option><option value="35">35</option><option value="40">40</option>
-          <option value="45">45</option><option value="50">50</option><option value="55">55</option>
-        </select>
-        <button class="btn-primary" onclick="adicionarHorario()" style="width:auto;padding:9px 20px;font-size:13px">+ Adicionar horário</button>
+
+      <!-- Testar -->
+      <div style="border-top:1px solid var(--border);margin-top:1.25rem;padding-top:1rem;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <div style="flex:1;min-width:180px">
+          <div style="font-size:13px;font-weight:500">Testar disparo agora</div>
+          <div style="font-size:12px;color:var(--muted)">Dispara para todas as parcelas em atraso imediatamente</div>
+        </div>
+        <button class="btn-sm" onclick="testarDisparo('wpp')" style="color:var(--verde);border-color:rgba(0,200,150,.3);padding:8px 16px">▶ Testar WPP</button>
+        <button class="btn-sm" onclick="testarDisparo('voz')" style="color:#a78bfa;border-color:rgba(124,58,237,.3);padding:8px 16px">▶ Testar Ligações</button>
       </div>
       <div id="horarios-status" style="display:none;margin-top:.75rem;padding:.6rem 1rem;border-radius:8px;font-size:13px;text-align:center"></div>
     </div>
@@ -597,15 +621,19 @@ async function carregarRegua() {
     </div>
   `;
 
-  // Popula select de horas
-  const sel = document.getElementById('horario-hora');
-  for (let i = 0; i < 24; i++) {
-    const opt = document.createElement('option');
-    opt.value = String(i).padStart(2,'0');
-    opt.textContent = String(i).padStart(2,'0');
-    sel.appendChild(opt);
-  }
+  // Popula selects de horas
+  ['horario-hora','horario-voz-hora'].forEach(id => {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    for (let i = 0; i < 24; i++) {
+      const opt = document.createElement('option');
+      opt.value = String(i).padStart(2,'0');
+      opt.textContent = String(i).padStart(2,'0');
+      sel.appendChild(opt);
+    }
+  });
   renderHorarios();
+  renderHorariosVoz();
 }
 
 function toggleExpand(id) {
@@ -637,7 +665,18 @@ function toggleVoz(id, ativo) {
   salvarMensagem(id);
 }
 
-let horariosEnvio = [8];
+let horariosEnvio = ['08:00'];
+let horariosLigacao = [];
+
+function parseHorariosUI(json, fallback) {
+  try {
+    const arr = JSON.parse(json || 'null');
+    if (!Array.isArray(arr)) return fallback;
+    return arr.filter(h => h !== null && h !== undefined)
+      .map(h => typeof h === 'number' ? `${String(h).padStart(2,'0')}:00` : h)
+      .filter(h => /^\d{2}:\d{2}$/.test(h));
+  } catch { return fallback; }
+}
 
 async function carregarConfig() {
   const rp = await api('/auth/me');
@@ -688,8 +727,53 @@ async function removerHorario(h) {
 async function salvarHorarios() {
   try {
     await api('/regua/config', { method: 'PUT', body: { horarios_envio: horariosEnvio } });
-    mostrarStatusHorario('✓ Horários salvos!', true);
+    mostrarStatusHorario('✓ Horários WhatsApp salvos!', true);
   } catch { mostrarStatusHorario('Erro ao salvar.', false); }
+}
+
+function renderHorariosVoz() {
+  const lista = document.getElementById('horarios-voz-lista');
+  if (!lista) return;
+  if (!horariosLigacao.length) {
+    lista.innerHTML = '<span style="font-size:12px;color:var(--muted)">Nenhum horário de ligação</span>';
+    return;
+  }
+  lista.innerHTML = [...horariosLigacao].sort().map(h => `
+    <div style="display:flex;align-items:center;gap:6px;background:rgba(124,58,237,.12);border:1px solid rgba(124,58,237,.25);border-radius:99px;padding:4px 12px;font-size:13px;color:#a78bfa;font-weight:500">
+      ${h}
+      <span onclick="removerHorarioVoz('${h}')" style="cursor:pointer;font-size:16px;color:var(--muted);line-height:1;margin-left:2px" title="Remover">×</span>
+    </div>
+  `).join('');
+}
+
+async function adicionarHorarioVoz() {
+  const hora = document.getElementById('horario-voz-hora').value;
+  const min = document.getElementById('horario-voz-min').value;
+  const timeStr = `${hora}:${min}`;
+  if (horariosLigacao.includes(timeStr)) { mostrarStatusHorario('Esse horário já está na lista.', false); return; }
+  horariosLigacao.push(timeStr);
+  renderHorariosVoz();
+  try {
+    await api('/regua/config', { method: 'PUT', body: { horarios_ligacao: horariosLigacao } });
+    mostrarStatusHorario('✓ Horários de ligação salvos!', true);
+  } catch { mostrarStatusHorario('Erro ao salvar.', false); }
+}
+
+async function removerHorarioVoz(h) {
+  horariosLigacao = horariosLigacao.filter(x => x !== h);
+  renderHorariosVoz();
+  try {
+    await api('/regua/config', { method: 'PUT', body: { horarios_ligacao: horariosLigacao } });
+    mostrarStatusHorario('✓ Horário removido!', true);
+  } catch { mostrarStatusHorario('Erro ao salvar.', false); }
+}
+
+async function testarDisparo(tipo) {
+  mostrarStatusHorario(`⏳ Disparando ${tipo === 'wpp' ? 'mensagens WhatsApp' : 'ligações IA'}...`, true);
+  try {
+    await api('/regua/disparar-agora', { method: 'POST', body: { tipo } });
+    mostrarStatusHorario(`✓ Disparo de ${tipo === 'wpp' ? 'WhatsApp' : 'ligações'} executado! Verifique o histórico de disparos.`, true);
+  } catch { mostrarStatusHorario('Erro ao disparar. Tente novamente.', false); }
 }
 
 function mostrarStatusHorario(txt, ok) {
