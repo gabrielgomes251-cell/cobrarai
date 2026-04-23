@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CobrarAí — Entrar</title>
+<title>COBRA AI — Entrar</title>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -122,24 +122,44 @@
   }
 
   .logo-icon {
-    width: 52px;
-    height: 52px;
-    background: linear-gradient(135deg, var(--verde), var(--verde-dark));
+    width: 56px;
+    height: 56px;
+    background: transparent;
+    border: 2px solid #00ffcc;
     border-radius: 14px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     margin-bottom: 1rem;
-    box-shadow: 0 0 30px rgba(0,200,150,0.3);
-    font-size: 24px;
+    box-shadow: 0 0 15px #00ffcc, 0 0 30px rgba(0,200,150,0.4), inset 0 0 15px rgba(0,255,204,0.08);
+    font-size: 26px;
+    animation: icon-pulse 3s ease-in-out infinite;
+  }
+  @keyframes icon-pulse {
+    0%,100% { box-shadow: 0 0 15px #00ffcc, 0 0 30px rgba(0,200,150,.4), inset 0 0 15px rgba(0,255,204,.08); }
+    50% { box-shadow: 0 0 25px #00ffcc, 0 0 50px rgba(0,200,150,.6), inset 0 0 20px rgba(0,255,204,.15); }
   }
 
   .logo-name {
     font-family: 'Syne', sans-serif;
-    font-size: 28px;
+    font-size: 32px;
     font-weight: 800;
-    color: var(--verde);
-    letter-spacing: -0.5px;
+    color: #00ffcc;
+    letter-spacing: 4px;
+    text-shadow:
+      0 0 4px #00ffcc,
+      0 0 12px #00ffcc,
+      0 0 25px #00C896,
+      0 0 50px rgba(0,200,150,0.5);
+    animation: neon-flicker 5s ease-in-out infinite;
+  }
+  @keyframes neon-flicker {
+    0%,90%,100% {
+      text-shadow: 0 0 4px #00ffcc, 0 0 12px #00ffcc, 0 0 25px #00C896, 0 0 50px rgba(0,200,150,.5);
+      opacity: 1;
+    }
+    93% { opacity: 0.85; text-shadow: 0 0 2px #00ffcc, 0 0 6px #00C896; }
+    95% { opacity: 1; text-shadow: 0 0 4px #00ffcc, 0 0 12px #00ffcc, 0 0 25px #00C896, 0 0 50px rgba(0,200,150,.5); }
   }
 
   .logo-tagline {
@@ -150,13 +170,13 @@
 
   /* ── Card ── */
   .card {
-    background: var(--card);
-    border: 1px solid var(--border);
+    background: rgba(22,30,26,0.55);
+    border: 1px solid rgba(0,255,204,0.15);
     border-radius: 20px;
     padding: 2rem;
-    box-shadow: 0 24px 60px rgba(0,0,0,0.4), 0 0 0 1px rgba(0,200,150,0.04);
+    box-shadow: 0 24px 60px rgba(0,0,0,0.5), 0 0 30px rgba(0,200,150,0.06);
     animation: fade-in 0.6s ease 0.2s both;
-    backdrop-filter: blur(10px);
+    backdrop-filter: blur(18px);
   }
 
   /* ── Tabs ── */
@@ -377,18 +397,15 @@
 </head>
 <body>
 
-<div class="bg-grid"></div>
-<div class="bg-glow"></div>
-<div class="bg-glow2"></div>
-
+<canvas id="holo-canvas" style="position:fixed;inset:0;z-index:0;pointer-events:none"></canvas>
 <div class="particles" id="particles"></div>
 
 <div class="wrapper">
 
   <div class="logo-area">
     <div class="logo-icon">◈</div>
-    <div class="logo-name">CobrarAí</div>
-    <div class="logo-tagline">Cobranças inteligentes com PIX & WhatsApp</div>
+    <div class="logo-name">COBRA AI</div>
+    <div class="logo-tagline">Cobranças inteligentes com IA & WhatsApp</div>
   </div>
 
   <div class="card">
@@ -457,11 +474,41 @@
     </div>
   </div>
 
-  <div class="footer">© 2024 CobrarAí · Todos os direitos reservados</div>
+  <div class="footer">© 2025 COBRA AI · Todos os direitos reservados</div>
 </div>
 
 <script>
 const API = '/api';
+
+// ── Hologram canvas ──
+(function() {
+  const canvas = document.getElementById('holo-canvas');
+  const ctx = canvas.getContext('2d');
+  let mX = 0.5, mY = 0.5, offX = 0, offY = 0;
+  function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+  resize();
+  window.addEventListener('resize', resize);
+  document.addEventListener('mousemove', e => { mX = e.clientX / window.innerWidth; mY = e.clientY / window.innerHeight; });
+  function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    offX += (mX * 30 - offX) * 0.04;
+    offY += (mY * 30 - offY) * 0.04;
+    const sz = 48;
+    ctx.strokeStyle = 'rgba(0,255,204,0.045)';
+    ctx.lineWidth = 0.5;
+    const sx = (offX % sz) - sz, sy = (offY % sz) - sz;
+    const cols = Math.ceil(canvas.width / sz) + 2, rows = Math.ceil(canvas.height / sz) + 2;
+    for (let i = 0; i < cols; i++) for (let j = 0; j < rows; j++) ctx.strokeRect(sx + i*sz, sy + j*sz, sz, sz);
+    // Mouse gradient darkening
+    const grd = ctx.createRadialGradient(mX*canvas.width, mY*canvas.height, 0, mX*canvas.width, mY*canvas.height, canvas.width*0.8);
+    grd.addColorStop(0, 'rgba(0,0,0,0)');
+    grd.addColorStop(1, 'rgba(0,0,0,0.22)');
+    ctx.fillStyle = grd;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
 
 // ── Partículas ──
 (function() {

@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>COBRA AI — Admin</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root { --verde:#00C896; --verde-dark:#00A07A; --bg:#0A0F0D; --bg2:#111916; --card:#161E1A; --border:rgba(0,200,150,0.12); --text:#E8F5F0; --muted:#6B8F80; --danger:#FF5A5A; --warning:#F5A623; --purple:#7c3aed; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:var(--bg); color:var(--text); font-family:'DM Sans',sans-serif; min-height:100vh; display:flex; position:relative; overflow:hidden; }
+  #holo-canvas { position:fixed; inset:0; z-index:0; pointer-events:none; }
+  .sidebar { width:220px; min-width:220px; background:rgba(17,25,22,0.7); border-right:1px solid rgba(0,255,204,0.1); padding:1.5rem 1rem; display:flex; flex-direction:column; position:relative; z-index:10; backdrop-filter:blur(16px); }
+  .logo { font-family:'Syne',sans-serif; font-size:18px; font-weight:800; color:#00ffcc; margin-bottom:.25rem; padding:0 .5rem; letter-spacing:3px; text-shadow:0 0 4px #00ffcc,0 0 12px #00C896,0 0 25px rgba(0,200,150,.4); }
+  .logo-sub { font-size:11px; color:#a78bfa; padding:0 .5rem; margin-bottom:1.75rem; letter-spacing:1px; text-transform:uppercase; }
+  .nav-item { display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:8px; cursor:pointer; color:var(--muted); font-size:14px; transition:all .15s; margin-bottom:2px; }
+  .nav-item:hover { background:rgba(0,200,150,.08); color:var(--text); }
+  .nav-item.active { background:rgba(124,58,237,.15); color:#a78bfa; }
+  .sidebar-footer { margin-top:auto; border-top:1px solid var(--border); padding-top:1rem; }
+  .user-info { font-size:12px; color:var(--muted); padding:.5rem; }
+  .btn-sair { width:100%; padding:8px; background:transparent; border:1px solid var(--border); border-radius:8px; color:var(--muted); font-size:13px; cursor:pointer; margin-top:6px; font-family:'DM Sans',sans-serif; }
+  .btn-sair:hover { border-color:var(--danger); color:var(--danger); }
+  .main { flex:1; overflow-y:auto; position:relative; z-index:10; }
+  .topbar { padding:1.25rem 2rem; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; background:rgba(10,15,13,0.4); backdrop-filter:blur(10px); }
+  .page-title { font-family:'Syne',sans-serif; font-size:20px; font-weight:600; }
+  .content { padding:2rem; }
+  .metrics { display:grid; grid-template-columns:repeat(5,1fr); gap:12px; margin-bottom:2rem; }
+  .metric { background:rgba(22,30,26,0.55); border:1px solid rgba(0,255,204,0.1); border-radius:12px; padding:1.25rem; backdrop-filter:blur(10px); }
+  .metric-label { font-size:12px; color:var(--muted); margin-bottom:8px; }
+  .metric-val { font-size:24px; font-weight:500; font-family:'Syne',sans-serif; color:var(--verde); }
+  .metric-sub { font-size:12px; color:var(--muted); margin-top:4px; }
+  .table-card { background:rgba(22,30,26,0.55); border:1px solid rgba(0,255,204,0.1); border-radius:12px; overflow:hidden; backdrop-filter:blur(10px); }
+  .table-header { padding:1rem 1.25rem; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border); }
+  .table-title { font-size:15px; font-weight:500; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th { padding:10px 14px; text-align:left; color:var(--muted); font-weight:400; font-size:12px; border-bottom:1px solid var(--border); }
+  td { padding:12px 14px; border-bottom:1px solid rgba(0,200,150,.05); vertical-align:middle; }
+  tr:last-child td { border-bottom:none; }
+  tr:hover td { background:rgba(0,200,150,.03); }
+  .badge { display:inline-block; font-size:11px; padding:3px 9px; border-radius:99px; font-weight:500; }
+  .b-ativo { background:rgba(0,200,150,.1); color:var(--verde); }
+  .admin-badge { background:rgba(124,58,237,.2); color:#a78bfa; border:1px solid rgba(124,58,237,.3); padding:3px 10px; border-radius:99px; font-size:11px; }
+  .page { display:none; }
+  .page.active { display:block; }
+  .empty { text-align:center; padding:3rem; color:var(--muted); }
+  #acesso-negado { display:none; align-items:center; justify-content:center; height:100vh; flex-direction:column; gap:1rem; }
+</style>
+</head>
+<body>
+<canvas id="holo-canvas"></canvas>
+
+<div id="acesso-negado" style="display:none;position:fixed;inset:0;z-index:100;align-items:center;justify-content:center;flex-direction:column;gap:1rem;background:rgba(10,15,13,.95)">
+  <div style="font-size:40px">🔒</div>
+  <div style="font-family:'Syne',sans-serif;font-size:20px;color:var(--danger)">Acesso Restrito</div>
+  <div style="color:var(--muted);font-size:14px">Esta área é exclusiva para administradores.</div>
+  <a href="index.html" style="color:var(--verde);font-size:14px;margin-top:.5rem">← Voltar</a>
+</div>
+
+<div class="sidebar" id="sidebar" style="display:none">
+  <div class="logo">COBRA AI</div>
+  <div class="logo-sub">⚡ Admin</div>
+  <div class="nav-item active" onclick="irPara('dashboard',this)">◈ Dashboard</div>
+  <div class="nav-item" onclick="irPara('lojistas',this)">◉ Lojistas</div>
+  <div style="margin-top:8px;padding:0 .5rem">
+    <a href="painel.html" style="display:block;padding:8px 12px;background:rgba(0,200,150,.08);border:1px solid rgba(0,200,150,.12);border-radius:8px;color:var(--muted);font-size:13px;text-decoration:none">← Meu painel</a>
+  </div>
+  <div class="sidebar-footer">
+    <div class="user-info" id="admin-email-display">—</div>
+    <button class="btn-sair" onclick="sair()">Sair</button>
+  </div>
+</div>
+
+<div class="main" id="main-content" style="display:none">
+  <!-- DASHBOARD -->
+  <div id="page-dashboard" class="page active">
+    <div class="topbar"><div class="page-title">Visão Geral</div><div id="ultima-att" style="font-size:12px;color:var(--muted)"></div></div>
+    <div class="content">
+      <div class="metrics">
+        <div class="metric"><div class="metric-label">Lojistas</div><div class="metric-val" id="m-lojistas">—</div><div class="metric-sub">cadastrados</div></div>
+        <div class="metric"><div class="metric-label">Clientes</div><div class="metric-val" id="m-clientes">—</div><div class="metric-sub">total</div></div>
+        <div class="metric"><div class="metric-label">Cobranças</div><div class="metric-val" id="m-cobrancas">—</div><div class="metric-sub">total</div></div>
+        <div class="metric"><div class="metric-label">Disparos OK</div><div class="metric-val" id="m-disparos">—</div><div class="metric-sub">enviados</div></div>
+        <div class="metric"><div class="metric-label">Receita Paga</div><div class="metric-val" id="m-receita" style="font-size:18px">—</div><div class="metric-sub">total</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LOJISTAS -->
+  <div id="page-lojistas" class="page">
+    <div class="topbar"><div class="page-title">Lojistas</div></div>
+    <div class="content">
+      <div class="table-card">
+        <div class="table-header"><div class="table-title">Todos os lojistas</div></div>
+        <table>
+          <thead><tr><th>Nome</th><th>Empresa</th><th>Email</th><th>Telefone</th><th>Clientes</th><th>Cobranças</th><th>Disparos</th><th>Cadastro</th></tr></thead>
+          <tbody id="tb-lojistas"><tr><td colspan="8" class="empty">Carregando...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = '/api';
+const ADMIN_EMAIL = 'gabrielgomes251@gmail.com';
+let TOKEN = localStorage.getItem('token');
+
+// ── Hologram canvas ──
+(function() {
+  const canvas = document.getElementById('holo-canvas');
+  const ctx = canvas.getContext('2d');
+  let mX=0.5,mY=0.5,offX=0,offY=0;
+  function resize(){canvas.width=window.innerWidth;canvas.height=window.innerHeight;}
+  resize(); window.addEventListener('resize',resize);
+  document.addEventListener('mousemove',e=>{mX=e.clientX/window.innerWidth;mY=e.clientY/window.innerHeight;});
+  function draw(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    offX+=(mX*30-offX)*0.04;offY+=(mY*30-offY)*0.04;
+    const sz=48;ctx.strokeStyle='rgba(124,58,237,0.05)';ctx.lineWidth=0.5;
+    const sx=(offX%sz)-sz,sy=(offY%sz)-sz;
+    const cols=Math.ceil(canvas.width/sz)+2,rows=Math.ceil(canvas.height/sz)+2;
+    for(let i=0;i<cols;i++) for(let j=0;j<rows;j++) ctx.strokeRect(sx+i*sz,sy+j*sz,sz,sz);
+    const grd=ctx.createRadialGradient(mX*canvas.width,mY*canvas.height,0,mX*canvas.width,mY*canvas.height,canvas.width*0.9);
+    grd.addColorStop(0,'rgba(0,0,0,0)');grd.addColorStop(1,'rgba(0,0,0,0.2)');
+    ctx.fillStyle=grd;ctx.fillRect(0,0,canvas.width,canvas.height);
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
+
+function api(path, opts={}) {
+  return fetch(API+path,{...opts,headers:{'Content-Type':'application/json',Authorization:`Bearer ${TOKEN}`,...(opts.headers||{})},body:opts.body?JSON.stringify(opts.body):undefined});
+}
+
+function sair() { localStorage.clear(); window.location.href='index.html'; }
+
+function irPara(page, el) {
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('page-'+page).classList.add('active');
+  if(el) el.classList.add('active');
+  if(page==='lojistas') carregarLojistas();
+}
+
+async function carregarStats() {
+  try {
+    const r = await api('/admin/stats');
+    const d = await r.json();
+    document.getElementById('m-lojistas').textContent = d.lojistas;
+    document.getElementById('m-clientes').textContent = d.clientes;
+    document.getElementById('m-cobrancas').textContent = d.cobrancas;
+    document.getElementById('m-disparos').textContent = d.disparos;
+    document.getElementById('m-receita').textContent = 'R$ '+Number(d.receita).toLocaleString('pt-BR',{minimumFractionDigits:2});
+    document.getElementById('ultima-att').textContent = 'Atualizado: '+new Date().toLocaleTimeString('pt-BR');
+  } catch(e) { console.error(e); }
+}
+
+async function carregarLojistas() {
+  try {
+    const r = await api('/admin/lojistas');
+    const rows = await r.json();
+    const tb = document.getElementById('tb-lojistas');
+    if(!rows.length){tb.innerHTML='<tr><td colspan="8" class="empty">Nenhum lojista.</td></tr>';return;}
+    tb.innerHTML = rows.map(l=>`
+      <tr>
+        <td><b style="color:var(--text)">${l.nome}</b>${l.email===ADMIN_EMAIL?'<span class="admin-badge" style="margin-left:6px">admin</span>':''}</td>
+        <td style="color:var(--muted)">${l.nome_empresa||'—'}</td>
+        <td style="font-size:12px;color:var(--muted)">${l.email}</td>
+        <td style="color:var(--muted)">${l.telefone||'—'}</td>
+        <td style="text-align:center">${l.total_clientes}</td>
+        <td style="text-align:center">${l.total_cobrancas}</td>
+        <td style="text-align:center"><span class="badge b-ativo">${l.total_disparos}</span></td>
+        <td style="font-size:12px;color:var(--muted)">${l.criado_em?l.criado_em.substring(0,10):'—'}</td>
+      </tr>
+    `).join('');
+  } catch(e) { console.error(e); }
+}
+
+async function init() {
+  if(!TOKEN) { window.location.href='index.html'; return; }
+  try {
+    const r = await api('/auth/me');
+    if(!r.ok) { window.location.href='index.html'; return; }
+    const d = await r.json();
+    if(d.email !== ADMIN_EMAIL) {
+      document.getElementById('acesso-negado').style.display='flex';
+      return;
+    }
+    document.getElementById('admin-email-display').textContent = d.email;
+    document.getElementById('sidebar').style.display='flex';
+    document.getElementById('main-content').style.display='block';
+    carregarStats();
+  } catch(e) { window.location.href='index.html'; }
+}
+
+init();
+</script>
+</body>
+</html>

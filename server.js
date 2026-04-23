@@ -860,6 +860,48 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', versao: '1.1.0', hora: new Date().toISOString() });
 });
 
+// ─── ADMIN ────────────────────────────────────────────────────────────────────
+const ADMIN_EMAIL = 'gabrielgomes251@gmail.com';
+
+function adminMiddleware(req, res, next) {
+  const auth = req.headers.authorization;
+  if (!auth) return res.status(401).json({ erro: 'Token necessário' });
+  try {
+    const payload = jwt.verify(auth.replace('Bearer ', ''), JWT_SECRET);
+    if (payload.email !== ADMIN_EMAIL) return res.status(403).json({ erro: 'Acesso restrito' });
+    req.admin = payload;
+    next();
+  } catch { res.status(401).json({ erro: 'Token inválido' }); }
+}
+
+app.get('/api/admin/stats', adminMiddleware, async (req, res) => {
+  try {
+    const lojistas   = await dbGet('SELECT COUNT(*) as total FROM lojistas');
+    const clientes   = await dbGet('SELECT COUNT(*) as total FROM clientes');
+    const cobrancas  = await dbGet('SELECT COUNT(*) as total FROM cobrancas');
+    const disparos   = await dbGet("SELECT COUNT(*) as total FROM disparos WHERE status='ok'");
+    const receita    = await dbGet("SELECT COALESCE(SUM(valor),0) as total FROM parcelas WHERE status='pago'");
+    res.json({ lojistas: lojistas.total, clientes: clientes.total, cobrancas: cobrancas.total, disparos: disparos.total, receita: receita.total });
+  } catch (e) { res.status(500).json({ erro: e.message }); }
+});
+
+app.get('/api/admin/lojistas', adminMiddleware, async (req, res) => {
+  try {
+    const rows = await dbAll(`
+      SELECT l.id, l.nome, l.nome_empresa, l.email, l.telefone, l.criado_em,
+        COUNT(DISTINCT c.id) as total_clientes,
+        COUNT(DISTINCT cob.id) as total_cobrancas,
+        COUNT(DISTINCT CASE WHEN d.status='ok' THEN d.id END) as total_disparos
+      FROM lojistas l
+      LEFT JOIN clientes c ON c.lojista_id = l.id
+      LEFT JOIN cobrancas cob ON cob.lojista_id = l.id
+      LEFT JOIN disparos d ON d.lojista_id = l.id
+      GROUP BY l.id ORDER BY l.criado_em DESC
+    `);
+    res.json(rows);
+  } catch (e) { res.status(500).json({ erro: e.message }); }
+});
+
 // ─── START ────────────────────────────────────────────────────────────────────
 iniciarBanco().then(() => {
   app.listen(PORT, () => {

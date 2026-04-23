@@ -3,15 +3,23 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CobrarAí — Painel</title>
+<title>COBRA AI — Painel</title>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
   :root { --verde:#00C896; --verde-dark:#00A07A; --bg:#0A0F0D; --bg2:#111916; --card:#161E1A; --border:rgba(0,200,150,0.12); --text:#E8F5F0; --muted:#6B8F80; --danger:#FF5A5A; --warning:#F5A623; }
   * { box-sizing:border-box; margin:0; padding:0; }
-  body { background:var(--bg); color:var(--text); font-family:'DM Sans',sans-serif; min-height:100vh; display:flex; }
+  body { background:var(--bg); color:var(--text); font-family:'DM Sans',sans-serif; min-height:100vh; display:flex; position:relative; overflow:hidden; }
+  #holo-canvas { position:fixed; inset:0; z-index:0; pointer-events:none; }
   /* SIDEBAR */
-  .sidebar { width:220px; min-width:220px; background:var(--bg2); border-right:1px solid var(--border); padding:1.5rem 1rem; display:flex; flex-direction:column; }
-  .logo { font-family:'Syne',sans-serif; font-size:22px; font-weight:700; color:var(--verde); margin-bottom:2rem; padding:0 .5rem; }
+  .sidebar { width:220px; min-width:220px; background:rgba(17,25,22,0.7); border-right:1px solid rgba(0,255,204,0.1); padding:1.5rem 1rem; display:flex; flex-direction:column; position:relative; z-index:10; backdrop-filter:blur(16px); }
+  .logo { font-family:'Syne',sans-serif; font-size:20px; font-weight:800; color:#00ffcc; margin-bottom:2rem; padding:0 .5rem; letter-spacing:3px;
+    text-shadow: 0 0 4px #00ffcc, 0 0 12px #00C896, 0 0 25px rgba(0,200,150,.4);
+    animation: neon-flicker 5s ease-in-out infinite; }
+  @keyframes neon-flicker {
+    0%,90%,100% { text-shadow:0 0 4px #00ffcc,0 0 12px #00C896,0 0 25px rgba(0,200,150,.4); opacity:1; }
+    93% { opacity:.82; text-shadow:0 0 2px #00ffcc; }
+    95% { opacity:1; text-shadow:0 0 4px #00ffcc,0 0 12px #00C896,0 0 25px rgba(0,200,150,.4); }
+  }
   .nav-item { display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:8px; cursor:pointer; color:var(--muted); font-size:14px; transition:all .15s; margin-bottom:2px; }
   .nav-item:hover { background:rgba(0,200,150,.08); color:var(--text); }
   .nav-item.active { background:rgba(0,200,150,.12); color:var(--verde); }
@@ -22,7 +30,7 @@
   .btn-sair { width:100%; padding:8px; background:transparent; border:1px solid var(--border); border-radius:8px; color:var(--muted); font-size:13px; cursor:pointer; margin-top:8px; font-family:'DM Sans',sans-serif; }
   .btn-sair:hover { border-color:var(--danger); color:var(--danger); }
   /* MAIN */
-  .main { flex:1; overflow-y:auto; }
+  .main { flex:1; overflow-y:auto; position:relative; z-index:10; }
   .topbar { padding:1.25rem 2rem; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; }
   .page-title { font-family:'Syne',sans-serif; font-size:20px; font-weight:600; }
   .btn-primary { background:var(--verde); color:#000; border:none; border-radius:8px; padding:9px 18px; font-size:14px; font-weight:500; font-family:'DM Sans',sans-serif; cursor:pointer; transition:background .15s; }
@@ -30,7 +38,7 @@
   .content { padding:2rem; }
   /* MÉTRICAS */
   .metrics { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:2rem; }
-  .metric { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:1.25rem; }
+  .metric { background:rgba(22,30,26,0.55); border:1px solid rgba(0,255,204,0.1); border-radius:12px; padding:1.25rem; backdrop-filter:blur(10px); }
   .metric-label { font-size:12px; color:var(--muted); margin-bottom:8px; }
   .metric-val { font-size:24px; font-weight:500; font-family:'Syne',sans-serif; }
   .metric-val.verde { color:var(--verde); }
@@ -38,7 +46,7 @@
   .metric-val.danger { color:var(--danger); }
   .metric-sub { font-size:12px; color:var(--muted); margin-top:4px; }
   /* TABELA */
-  .table-card { background:var(--card); border:1px solid var(--border); border-radius:12px; overflow:hidden; }
+  .table-card { background:rgba(22,30,26,0.55); border:1px solid rgba(0,255,204,0.1); border-radius:12px; overflow:hidden; backdrop-filter:blur(10px); }
   .table-header { padding:1rem 1.25rem; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border); }
   .table-title { font-size:15px; font-weight:500; }
   .filters { display:flex; gap:6px; }
@@ -61,7 +69,7 @@
   /* MODAL */
   .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.7); display:flex; align-items:center; justify-content:center; z-index:100; display:none; }
   .modal-overlay.open { display:flex; }
-  .modal { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:1.75rem; width:100%; max-width:520px; max-height:90vh; overflow-y:auto; }
+  .modal { background:rgba(22,30,26,0.85); border:1px solid rgba(0,255,204,0.15); border-radius:16px; padding:1.75rem; width:100%; max-width:520px; max-height:90vh; overflow-y:auto; backdrop-filter:blur(20px); }
   .modal-title { font-family:'Syne',sans-serif; font-size:18px; font-weight:600; margin-bottom:1.5rem; }
   .field { margin-bottom:1rem; }
   .field label { display:block; font-size:12px; color:var(--muted); margin-bottom:6px; }
@@ -80,9 +88,10 @@
 </style>
 </head>
 <body>
+<canvas id="holo-canvas"></canvas>
 
 <div class="sidebar">
-  <div class="logo" onclick="irParaDashboard()" style="cursor:pointer" title="Ir para o início">CobrarAí</div>
+  <div class="logo" onclick="irParaDashboard()" style="cursor:pointer" title="Ir para o início">COBRA AI</div>
   <div class="nav-item active" onclick="irPara('dashboard')"><span class="nav-icon">◈</span> Dashboard</div>
   <div class="nav-item" onclick="irPara('cobrancas')"><span class="nav-icon">◎</span> Cobranças</div>
   <div class="nav-item" onclick="irPara('clientes')"><span class="nav-icon">◉</span> Clientes</div>
@@ -92,6 +101,9 @@
     <div class="user-info">
       <div class="user-name" id="user-nome">—</div>
       <div id="user-email" style="font-size:12px">—</div>
+    </div>
+    <div id="admin-link" style="display:none;margin-top:8px">
+      <a href="admin.html" style="display:block;padding:8px;background:rgba(124,58,237,.15);border:1px solid rgba(124,58,237,.3);border-radius:8px;color:#a78bfa;font-size:12px;text-align:center;text-decoration:none;font-weight:500">⚡ Painel Admin</a>
     </div>
     <button class="btn-sair" onclick="sair()">Sair</button>
   </div>
@@ -401,6 +413,32 @@
 </div>
 
 <script>
+// ── Hologram canvas ──
+(function() {
+  const canvas = document.getElementById('holo-canvas');
+  const ctx = canvas.getContext('2d');
+  let mX = 0.5, mY = 0.5, offX = 0, offY = 0;
+  function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+  resize();
+  window.addEventListener('resize', resize);
+  document.addEventListener('mousemove', e => { mX = e.clientX/window.innerWidth; mY = e.clientY/window.innerHeight; });
+  function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    offX += (mX*30 - offX)*0.04; offY += (mY*30 - offY)*0.04;
+    const sz = 48;
+    ctx.strokeStyle = 'rgba(0,255,204,0.038)'; ctx.lineWidth = 0.5;
+    const sx = (offX%sz)-sz, sy = (offY%sz)-sz;
+    const cols = Math.ceil(canvas.width/sz)+2, rows = Math.ceil(canvas.height/sz)+2;
+    for (let i=0;i<cols;i++) for (let j=0;j<rows;j++) ctx.strokeRect(sx+i*sz, sy+j*sz, sz, sz);
+    const grd = ctx.createRadialGradient(mX*canvas.width, mY*canvas.height, 0, mX*canvas.width, mY*canvas.height, canvas.width*0.9);
+    grd.addColorStop(0, 'rgba(0,0,0,0)');
+    grd.addColorStop(1, 'rgba(0,0,0,0.18)');
+    ctx.fillStyle = grd; ctx.fillRect(0, 0, canvas.width, canvas.height);
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
+
 const API = '/api';
 let TOKEN = localStorage.getItem('token');
 let todosClientes = [];
@@ -1206,6 +1244,9 @@ async function init() {
   const l = JSON.parse(localStorage.getItem('lojista') || '{}');
   document.getElementById('user-nome').textContent = l.nome || 'Lojista';
   document.getElementById('user-email').textContent = l.email || '';
+  if (l.email === 'gabrielgomes251@gmail.com') {
+    document.getElementById('admin-link').style.display = 'block';
+  }
   carregarDashboard();
 }
 
