@@ -183,6 +183,26 @@
         <div id="perfil-status-msg" style="display:none;margin-top:.75rem;padding:.6rem 1rem;border-radius:8px;font-size:13px;text-align:center"></div>
       </div>
 
+      <!-- Alterar senha -->
+      <div class="table-card" style="padding:1.5rem;margin-bottom:1rem">
+        <div style="font-size:15px;font-weight:500;margin-bottom:.25rem">Alterar senha</div>
+        <div style="font-size:13px;color:var(--muted);margin-bottom:1.25rem">Escolha uma senha segura com ao menos 6 caracteres.</div>
+        <div class="field">
+          <label>Senha atual</label>
+          <input id="cfg-senha-atual" type="password" placeholder="••••••••">
+        </div>
+        <div class="field" style="margin-top:.75rem">
+          <label>Nova senha</label>
+          <input id="cfg-senha-nova" type="password" placeholder="••••••••">
+        </div>
+        <div class="field" style="margin-top:.75rem">
+          <label>Confirmar nova senha</label>
+          <input id="cfg-senha-conf" type="password" placeholder="••••••••">
+        </div>
+        <button class="btn-primary" onclick="alterarSenha()" style="margin-top:.75rem;width:100%">Alterar senha</button>
+        <div id="senha-status-msg" style="display:none;margin-top:.75rem;padding:.6rem 1rem;border-radius:8px;font-size:13px;text-align:center"></div>
+      </div>
+
       <!-- WhatsApp -->
       <div class="table-card" style="padding:1.5rem;margin-bottom:1rem">
         <div style="font-size:15px;font-weight:500;margin-bottom:.25rem">WhatsApp</div>
@@ -866,6 +886,34 @@ function mostrarStatusHorario(txt, ok) {
   setTimeout(() => el.style.display = 'none', 3000);
 }
 
+
+async function alterarSenha() {
+  const atual = document.getElementById('cfg-senha-atual')?.value || '';
+  const nova = document.getElementById('cfg-senha-nova')?.value || '';
+  const conf = document.getElementById('cfg-senha-conf')?.value || '';
+  const msg = document.getElementById('senha-status-msg');
+  msg.style.display = 'block';
+  if (!atual || !nova || !conf) {
+    msg.style.background = 'rgba(255,80,80,.1)'; msg.style.color = '#ff5050';
+    msg.textContent = 'Preencha todos os campos.'; return;
+  }
+  if (nova !== conf) {
+    msg.style.background = 'rgba(255,80,80,.1)'; msg.style.color = '#ff5050';
+    msg.textContent = 'A nova senha e a confirmação não coincidem.'; return;
+  }
+  try {
+    await api('/auth/senha', { method: 'PUT', body: { senha_atual: atual, senha_nova: nova } });
+    msg.style.background = 'rgba(0,200,150,.12)'; msg.style.color = 'var(--verde)';
+    msg.textContent = '✓ Senha alterada com sucesso!';
+    document.getElementById('cfg-senha-atual').value = '';
+    document.getElementById('cfg-senha-nova').value = '';
+    document.getElementById('cfg-senha-conf').value = '';
+    setTimeout(() => msg.style.display = 'none', 4000);
+  } catch(e) {
+    msg.style.background = 'rgba(255,80,80,.1)'; msg.style.color = '#ff5050';
+    msg.textContent = e.message || 'Erro ao alterar senha.';
+  }
+}
 
 async function salvarPerfil() {
   const nome = document.getElementById('cfg-nome')?.value?.trim() || '';

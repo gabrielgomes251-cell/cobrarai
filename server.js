@@ -298,6 +298,20 @@ app.put('/api/auth/perfil', authMiddleware, async (req, res) => {
   } catch (e) { res.status(500).json({ erro: e.message }); }
 });
 
+app.put('/api/auth/senha', authMiddleware, async (req, res) => {
+  try {
+    const { senha_atual, senha_nova } = req.body;
+    if (!senha_atual || !senha_nova) return res.status(400).json({ erro: 'Preencha todos os campos' });
+    if (senha_nova.length < 6) return res.status(400).json({ erro: 'Nova senha deve ter ao menos 6 caracteres' });
+    const lojista = await dbGet('SELECT senha_hash FROM lojistas WHERE id=?', [req.lojista.id]);
+    const ok = await bcrypt.compare(senha_atual, lojista.senha_hash);
+    if (!ok) return res.status(401).json({ erro: 'Senha atual incorreta' });
+    const hash = await bcrypt.hash(senha_nova, 10);
+    await dbRun('UPDATE lojistas SET senha_hash=? WHERE id=?', [hash, req.lojista.id]);
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ erro: e.message }); }
+});
+
 // ─── CLIENTES ─────────────────────────────────────────────────────────────────
 app.get('/api/clientes', authMiddleware, async (req, res) => {
   try {
