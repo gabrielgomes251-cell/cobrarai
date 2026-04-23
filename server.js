@@ -62,6 +62,12 @@ async function iniciarBanco() {
   await dbRun(`ALTER TABLE config ADD COLUMN vapi_phone_id TEXT`).catch(() => {});
   await dbRun(`ALTER TABLE config ADD COLUMN horarios_envio TEXT`).catch(() => {});
   await dbRun(`ALTER TABLE config ADD COLUMN horarios_ligacao TEXT`).catch(() => {});
+  await dbRun(`CREATE TABLE IF NOT EXISTS admin_colaboradores (
+    id        TEXT PRIMARY KEY,
+    nome      TEXT NOT NULL,
+    email     TEXT UNIQUE NOT NULL,
+    criado_em TEXT DEFAULT (datetime('now'))
+  )`).catch(() => {});
 
   await dbRun(`CREATE TABLE IF NOT EXISTS lojistas (
     id          TEXT PRIMARY KEY,
@@ -863,25 +869,28 @@ app.get('/api/health', (req, res) => {
 // ─── ADMIN ────────────────────────────────────────────────────────────────────
 const ADMIN_EMAIL = 'gabrielgomes251@gmail.com';
 
-function adminMiddleware(req, res, next) {
+async function adminMiddleware(req, res, next) {
   const auth = req.headers.authorization;
   if (!auth) return res.status(401).json({ erro: 'Token necessário' });
   try {
     const payload = jwt.verify(auth.replace('Bearer ', ''), JWT_SECRET);
-    if (payload.email !== ADMIN_EMAIL) return res.status(403).json({ erro: 'Acesso restrito' });
-    req.admin = payload;
-    next();
+    if (payload.email === ADMIN_EMAIL) { req.admin = payload; return next(); }
+    const colab = await dbGet('SELECT id FROM admin_colaboradores WHERE email=?', [payload.email]);
+    if (colab) { req.admin = payload; return next(); }
+    return res.status(403).json({ erro: 'Acesso restrito' });
   } catch { res.status(401).json({ erro: 'Token inválido' }); }
 }
 
 app.get('/api/admin/stats', adminMiddleware, async (req, res) => {
   try {
-    const lojistas   = await dbGet('SELECT COUNT(*) as total FROM lojistas');
-    const clientes   = await dbGet('SELECT COUNT(*) as total FROM clientes');
-    const cobrancas  = await dbGet('SELECT COUNT(*) as total FROM cobrancas');
-    const disparos   = await dbGet("SELECT COUNT(*) as total FROM disparos WHERE status='ok'");
-    const receita    = await dbGet("SELECT COALESCE(SUM(valor),0) as total FROM parcelas WHERE status='pago'");
-    res.json({ lojistas: lojistas.total, clientes: clientes.total, cobrancas: cobrancas.total, disparos: disparos.total, receita: receita.total });
+    const lojistas  = await dbGet('SELECT COUNT(*) as total FROM lojistas');
+    const clientes  = await dbGet('SELECT COUNT(*) as total FROM clientes');
+    const cobrancas = await dbGet('SELECT COUNT(*) as total FROM cobrancas');
+    const parcelas  = await dbGet('SELECT COUNT(*) as total FROM parcelas');
+    const disparos  = await dbGet("SELECT COUNT(*) as total FROM disparos WHERE status='ok'");
+    const receita   = await dbGet("SELECT COALESCE(SUM(valor),0) as total FROM parcelas WHERE status='pago'");
+    const atraso    = await dbGet("SELECT COUNT(*) as total FROM parcelas WHERE status IN ('pendente','prometeu') AND vencimento < date('now')");
+    res.json({ lojistas: lojistas.total, clientes: clientes.total, cobrancas: cobrancas.total, parcelas: parcelas.total, disparos: disparos.total, receita: receita.total, atraso: atraso.total });
   } catch (e) { res.status(500).json({ erro: e.message }); }
 });
 
@@ -899,6 +908,106 @@ app.get('/api/admin/lojistas', adminMiddleware, async (req, res) => {
       GROUP BY l.id ORDER BY l.criado_em DESC
     `);
     res.json(rows);
+  } catch (e) { res.status(500).json({ erro: e.message }); }
+});
+
+app.put('/api/admin/lojistas/:id', adminMiddleware, async (req, res) => {
+  try {
+    const { nome, nome_empresa, email, telefone } = req.body;
+    await dbRun('UPDATE lojistas SET nome=?, nome_empresa=?, email=?, telefone=? WHERE id=?', [nome, nome_empresa||null, email, telefone||null, req.params.id]);
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ erro: e.message }); }
+});
+
+app.delete('/api/admin/lojistas/:id', adminMiddleware, async (req, res) => {
+  try {
+    const id = req.params.id;
+    if (id === (await dbGet('SELECT id FROM lojistas WHERE email=?', [ADMIN_EMAIL]))?.id)
+      return res.status(400).json({ erro: 'Não é possível excluir o administrador principal' });
+    await dbRun('DELETE FROM disparos WHERE lojista_id=?', [id]);
+    const cobs = await dbAll('SELECT id FROM cobrancas WHERE lojista_id=?', [id]);
+    for (const c of cobs) await dbRun('DELETE FROM parcelas WHERE cobranca_id=?', [c.id]);
+    await dbRun('DELETE FROM cobrancas WHERE lojista_id=?', [id]);
+    await dbRun('DELETE FROM clientes WHERE lojista_id=?', [id]);
+    await dbRun('DELETE FROM regua WHERE lojista_id=?', [id]);
+    await dbRun('DELETE FROM config WHERE lojista_id=?', [id]);
+    await dbRun('DELETE FROM lojistas WHERE id=?', [id]);
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ erro: e.message }); }
+});
+
+app.get('/api/admin/clientes', adminMiddleware, async (req, res) => {
+  try {
+    const rows = await dbAll(`
+      SELECT c.*, l.nome as lojista_nome, l.nome_empresa,
+        COUNT(DISTINCT cob.id) as total_cobrancas,
+        COUNT(CASE WHEN p.status!='pago' AND p.vencimento < date('now') THEN 1 END) as parcelas_atrasadas,
+        COALESCE(SUM(CASE WHEN p.status!='pago' AND p.vencimento < date('now') THEN p.valor END),0) as valor_em_atraso
+      FROM clientes c
+      JOIN lojistas l ON l.id = c.lojista_id
+      LEFT JOIN cobrancas cob ON cob.cliente_id = c.id
+      LEFT JOIN parcelas p ON p.cobranca_id = cob.id
+      GROUP BY c.id ORDER BY c.criado_em DESC
+    `);
+    res.json(rows);
+  } catch (e) { res.status(500).json({ erro: e.message }); }
+});
+
+app.get('/api/admin/cobrancas', adminMiddleware, async (req, res) => {
+  try {
+    const rows = await dbAll(`
+      SELECT cob.*, l.nome as lojista_nome, l.nome_empresa, cli.nome as cliente_nome, cli.telefone as cliente_tel,
+        COUNT(p.id) as total_parcelas_real,
+        COUNT(CASE WHEN p.status='pago' THEN 1 END) as pagas,
+        COUNT(CASE WHEN p.status!='pago' AND p.vencimento < date('now') THEN 1 END) as atrasadas
+      FROM cobrancas cob
+      JOIN lojistas l ON l.id = cob.lojista_id
+      JOIN clientes cli ON cli.id = cob.cliente_id
+      LEFT JOIN parcelas p ON p.cobranca_id = cob.id
+      GROUP BY cob.id ORDER BY cob.criado_em DESC
+    `);
+    res.json(rows);
+  } catch (e) { res.status(500).json({ erro: e.message }); }
+});
+
+app.get('/api/admin/disparos', adminMiddleware, async (req, res) => {
+  try {
+    const rows = await dbAll(`
+      SELECT d.*, l.nome as lojista_nome, l.nome_empresa
+      FROM disparos d
+      JOIN lojistas l ON l.id = d.lojista_id
+      ORDER BY d.enviado_em DESC LIMIT 500
+    `);
+    res.json(rows);
+  } catch (e) { res.status(500).json({ erro: e.message }); }
+});
+
+app.get('/api/admin/colaboradores', adminMiddleware, async (req, res) => {
+  try {
+    const rows = await dbAll('SELECT * FROM admin_colaboradores ORDER BY criado_em DESC');
+    res.json(rows);
+  } catch (e) { res.status(500).json({ erro: e.message }); }
+});
+
+app.post('/api/admin/colaboradores', adminMiddleware, async (req, res) => {
+  try {
+    if (req.admin.email !== ADMIN_EMAIL) return res.status(403).json({ erro: 'Apenas o administrador principal pode adicionar colaboradores' });
+    const { nome, email } = req.body;
+    if (!email) return res.status(400).json({ erro: 'Email obrigatório' });
+    const id = crypto.randomUUID();
+    await dbRun('INSERT INTO admin_colaboradores (id, nome, email) VALUES (?,?,?)', [id, nome||email, email]);
+    res.json({ ok: true, id });
+  } catch (e) {
+    if (e.message.includes('UNIQUE')) return res.status(400).json({ erro: 'Este email já é colaborador' });
+    res.status(500).json({ erro: e.message });
+  }
+});
+
+app.delete('/api/admin/colaboradores/:id', adminMiddleware, async (req, res) => {
+  try {
+    if (req.admin.email !== ADMIN_EMAIL) return res.status(403).json({ erro: 'Apenas o administrador principal pode remover colaboradores' });
+    await dbRun('DELETE FROM admin_colaboradores WHERE id=?', [req.params.id]);
+    res.json({ ok: true });
   } catch (e) { res.status(500).json({ erro: e.message }); }
 });
 
