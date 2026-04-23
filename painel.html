@@ -8,7 +8,7 @@
 <style>
   :root { --verde:#00C896; --verde-dark:#00A07A; --bg:#0A0F0D; --bg2:#111916; --card:#161E1A; --border:rgba(0,200,150,0.12); --text:#E8F5F0; --muted:#6B8F80; --danger:#FF5A5A; --warning:#F5A623; }
   * { box-sizing:border-box; margin:0; padding:0; }
-  body { background:var(--bg); color:var(--text); font-family:'DM Sans',sans-serif; min-height:100vh; display:flex; position:relative; overflow:hidden; }
+  body { background:var(--bg); color:var(--text); font-family:'DM Sans',sans-serif; height:100vh; display:flex; position:relative; overflow:hidden; }
   #holo-canvas { position:fixed; inset:0; z-index:0; pointer-events:none; }
   /* SIDEBAR */
   .sidebar { width:220px; min-width:220px; background:rgba(17,25,22,0.7); border-right:1px solid rgba(0,255,204,0.1); padding:1.5rem 1rem; display:flex; flex-direction:column; position:relative; z-index:10; backdrop-filter:blur(16px); }
@@ -36,7 +36,7 @@
   .btn-sair { width:100%; padding:8px; background:transparent; border:1px solid var(--border); border-radius:8px; color:var(--muted); font-size:13px; cursor:pointer; margin-top:8px; font-family:'DM Sans',sans-serif; }
   .btn-sair:hover { border-color:var(--danger); color:var(--danger); }
   /* MAIN */
-  .main { flex:1; overflow-y:auto; position:relative; z-index:10; }
+  .main { flex:1; overflow-y:auto; position:relative; z-index:10; height:100vh; }
   .topbar { padding:1.25rem 2rem; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; }
   .page-title { font-family:'Syne',sans-serif; font-size:20px; font-weight:600; }
   .btn-primary { background:var(--verde); color:#000; border:none; border-radius:8px; padding:9px 18px; font-size:14px; font-weight:500; font-family:'DM Sans',sans-serif; cursor:pointer; transition:background .15s; }
@@ -184,10 +184,13 @@
   <!-- CONFIG -->
   <div id="page-config" class="page">
     <div class="topbar"><div class="page-title">Configurações</div></div>
-    <div class="content" style="max-width:520px">
+    <div class="content" style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;align-items:start">
+
+      <!-- COL 1 -->
+      <div style="display:flex;flex-direction:column;gap:1rem">
 
       <!-- Perfil / Empresa -->
-      <div class="table-card" style="padding:1.5rem;margin-bottom:1rem">
+      <div class="table-card" style="padding:1.5rem">
         <div style="font-size:15px;font-weight:500;margin-bottom:.25rem">Seus dados</div>
         <div style="font-size:13px;color:var(--muted);margin-bottom:1.25rem">O nome da empresa aparece nas mensagens enviadas aos seus clientes. Você pode alterar quando quiser.</div>
         <div class="field">
@@ -203,7 +206,7 @@
       </div>
 
       <!-- Alterar senha -->
-      <div class="table-card" style="padding:1.5rem;margin-bottom:1rem">
+      <div class="table-card" style="padding:1.5rem">
         <div style="font-size:15px;font-weight:500;margin-bottom:.25rem">Alterar senha</div>
         <div style="font-size:13px;color:var(--muted);margin-bottom:1.25rem">Escolha uma senha segura com ao menos 6 caracteres.</div>
         <div class="field">
@@ -222,8 +225,13 @@
         <div id="senha-status-msg" style="display:none;margin-top:.75rem;padding:.6rem 1rem;border-radius:8px;font-size:13px;text-align:center"></div>
       </div>
 
+      </div><!-- /col1 -->
+
+      <!-- COL 2 -->
+      <div style="display:flex;flex-direction:column;gap:1rem">
+
       <!-- WhatsApp -->
-      <div class="table-card" style="padding:1.5rem;margin-bottom:1rem">
+      <div class="table-card" style="padding:1.5rem">
         <div style="font-size:15px;font-weight:500;margin-bottom:.25rem">WhatsApp</div>
         <div style="font-size:13px;color:var(--muted);margin-bottom:1.25rem">Conecte seu WhatsApp para enviar cobranças automaticamente</div>
 
@@ -256,7 +264,7 @@
         </div>
       </div>
 
-      <!-- OpenPix -->
+      <!-- PIX -->
       <div class="table-card" style="padding:1.5rem">
         <div style="font-size:15px;font-weight:500;margin-bottom:.25rem">PIX (OpenPix)</div>
         <div style="font-size:13px;color:var(--muted);margin-bottom:1.5rem">Integre com a OpenPix para gerar cobranças PIX automaticamente. É gratuito e leva menos de 5 minutos.</div>
@@ -318,8 +326,8 @@
         </div>
       </div>
 
-
-    </div>
+      </div><!-- /col2 -->
+    </div><!-- /grid -->
   </div>
 </div>
 
